@@ -10,6 +10,8 @@ WORKDIR app/
 
 COPY . .
 
-ENTRYPOINT ["python manage.py"]
+EXPOSE 8000
+
+ENTRYPOINT ["python", "manage.py"]
 
 CMD ["runserver"]
