@@ -1,11 +1,7 @@
 import json
 from api import functions
+from api.helpers import parse_coords
 from django.http import HttpResponse
-
-
-def parse_coords(latlon):
-    lat, lon = (float(x) for x in latlon.split(','))
-    return [lon, lat]
 
 
 def geocode(request):
