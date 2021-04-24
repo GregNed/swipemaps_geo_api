@@ -4,7 +4,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y
 
 RUN python -m pip install --upgrade pip
 
-RUN pip install requests django djangorestframework
+RUN pip install requests django djangorestframework openrouteservice
 
 WORKDIR app/
 
