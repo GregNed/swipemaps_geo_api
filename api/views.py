@@ -20,9 +20,20 @@ def reverse_geocode(request):
 def route(request):
     start = parse_coords(request.GET.get('start'))
     end = parse_coords(request.GET.get('end'))
-    num_alternatives = request.GET.get('num_alternatives')
+    num_alternatives = request.GET.get('num_alternatives', 10)
+    weight_factor = request.GET.get('weight_factor', 2.0)
+    share_factor = request.GET.get('share_factor', 0.8)
     client = ors.Client(base_url='http://localhost:8080/ors')
-    routes = client.directions((start, end)).get('routes')
-    res = [ors.convert.decode_polyline(geometry) for geometry in routes]
-    # res = functions.route(start, end, num_alternatives=num_alternatives)
-    return HttpResponse(json.dumps(res))
+    res = client.directions(
+        (start, end),
+        instructions=False,
+        alternative_routes={
+            'target_count': num_alternatives,
+            'weight_factor': weight_factor,
+            'share_factor': share_factor
+        })
+    geoms = [ors.convert.decode_polyline(route['geometry']) for route in res.get('routes', [])]
+    features = [{'type': 'Feature', 'properties': {'count': len(geoms)}, 'geometry': geom} for geom in geoms]
+    print(f'Feature count: {len(features)}')
+    result = {'type': 'FeatureCollection', 'features': features}
+    return HttpResponse(json.dumps(result))
