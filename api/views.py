@@ -19,5 +19,6 @@ def reverse_geocode(request):
 def route(request):
     start = parse_coords(request.GET.get('start'))
     end = parse_coords(request.GET.get('end'))
-    res = functions.route(start, end)
+    num_alternatives = request.GET.get('num_alternatives')
+    res = functions.route(start, end, num_alternatives=num_alternatives)
     return HttpResponse(json.dumps(res))

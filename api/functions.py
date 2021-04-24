@@ -74,7 +74,7 @@ def suggest(location, max_occurrences=5):
     return res.json()
 
 
-def route(start, end, mode='driving-car'):
+def route(start, end, mode='driving-car', num_alternatives=10):
     """"""
     res = requests.post(
         f'{ORS_ENDPOINT}v2/directions/{mode}',
@@ -85,7 +85,7 @@ def route(start, end, mode='driving-car'):
         json={
             'coordinates': [start, end],
             'alternative_routes': {
-                'target_count': 3,
+                'target_count': num_alternatives,
                 'share_factor': 0.6,
                 'weight_factor': 1.4
             }
