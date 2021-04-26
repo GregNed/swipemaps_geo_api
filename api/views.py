@@ -37,6 +37,9 @@ def route(request):
             'share_factor': share_factor
         })
     geoms = [ors.convert.decode_polyline(route['geometry']) for route in res.get('routes', [])]
-    features = [{'type': 'Feature', 'properties': {'count': len(geoms)}, 'geometry': geom} for geom in geoms]
+    num_geoms = len(geoms)
+    features = [{'type': 'Feature', 'properties': {'count': num_geoms}, 'geometry': geom} for geom in geoms]
+    for i in range(num_geoms):
+        features[i]['properties']['id'] = i
     result = {'type': 'FeatureCollection', 'features': features}
     return HttpResponse(json.dumps(result))
