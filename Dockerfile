@@ -1,18 +1,14 @@
 FROM python:3.9-slim
 
-RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y
-
-RUN python -m pip install --upgrade pip
-
-RUN pip install requests django djangorestframework openrouteservice
-
-# RUN apt-get install curl -y
-
 WORKDIR app/
 
 COPY . .
 
-EXPOSE 8000
+RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y
+
+RUN pip install --upgrade pip
+
+RUN pip install requests django djangorestframework openrouteservice
 
 ENTRYPOINT ["python", "manage.py"]
 
