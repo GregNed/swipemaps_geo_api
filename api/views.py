@@ -23,7 +23,7 @@ def route(request):
     num_alternatives = request.GET.get('num_alternatives', 10)
     weight_factor = request.GET.get('weight_factor', 2.0)
     share_factor = request.GET.get('share_factor', 0.8)
-    client = ors.Client(base_url='http://localhost:8080/ors')
+    client = ors.Client(base_url='http://ors:8080/ors')
     res = client.directions(
         (start, end),
         instructions=False,
