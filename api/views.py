@@ -5,6 +5,10 @@ from api.helpers import parse_coords
 from django.http import HttpResponse
 
 
+def healthcheck(request):
+    return HttpResponse(json.dumps({'status': 'OK'}))
+
+
 def geocode(request):
     text = request.GET.get('text')
     res = functions.geocode(text)
