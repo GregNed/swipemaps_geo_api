@@ -38,6 +38,5 @@ def route(request):
         })
     geoms = [ors.convert.decode_polyline(route['geometry']) for route in res.get('routes', [])]
     features = [{'type': 'Feature', 'properties': {'count': len(geoms)}, 'geometry': geom} for geom in geoms]
-    print(f'Feature count: {len(features)}')
     result = {'type': 'FeatureCollection', 'features': features}
     return HttpResponse(json.dumps(result))
