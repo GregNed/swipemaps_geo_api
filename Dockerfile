@@ -3,7 +3,6 @@ FROM python:3.9-slim
 RUN apt-get update && \
     apt-get --no-install-recommends upgrade -y && \
     apt-get autoremove -y && \
-    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 ENV VIRTUAL_ENV=/opt/venv
