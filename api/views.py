@@ -70,5 +70,5 @@ def snap_to_road(request):
             from pt, road;
         """, pt)
         pt = cur.fetchone()[0]
-        coords = json.loads(pt)['coordinates']
-    return HttpResponse(coords)
+        lon, lat = json.loads(pt)['coordinates']
+    return HttpResponse(f'{lon},{lat}')
