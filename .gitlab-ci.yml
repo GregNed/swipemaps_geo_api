@@ -12,7 +12,7 @@ build:
     - docker:20.10.6-dind
   script:
     - docker build -t registry.gitlab.com/dangoclub/geo .
-    - docker run -v 8000:8000 registry.gitlab.com/dangoclub/geo
+    - docker run -p 8000:8000 registry.gitlab.com/dangoclub/geo
     # - docker login -u driveandgoproject@gmail.com -p _rrzFap8gan13YR1psnz registry.gitlab.com 
 
 test:
