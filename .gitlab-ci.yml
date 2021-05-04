@@ -1,26 +1,32 @@
 stages:
-  - test
+  # - test
   - build
 
 default:
   image: python:3.9-slim
 
-test:
-  stage: test
-  script:
-    - pip install -r requirements.txt
-    - python manage.py runserver 0.0.0.0:8000 
-    - python tests/test.py
+# test:
+#   stage: test
+#   script:
+#     - pip install -r requirements.txt
+#     - python manage.py runserver 0.0.0.0:8000 
+#     - python tests/test.py
 
 build:
   stage: build
   image: docker:20.10.6
   services:
     - docker:20.10.6-dind
-  dependencies:
-    - test
+  # dependencies:
+  #   - test
   script:
-    - docker build -t registry.gitlab.com/dangoclub/geo .
-    - docker run -p 8000:8000 registry.gitlab.com/dangoclub/geo
-    - docker login -u CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker push 
+    - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE:latest || true
+    - > 
+      docker build
+      --pull
+      --build-arg VCS_REF=$CI_COMMIT_SHA
+      --build-arg VCS_URL=$CI_PROJECT_URL
+      --cache-from $CI_REGISTRY_IMAGE:latest
+      --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
