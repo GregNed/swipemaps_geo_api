@@ -3,7 +3,13 @@ stages:
   - build
 
 default:
-  image: python:3.9-slim
+  image: docker:20.10.6
+  before_script:
+    - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+
+variables:
+  - CURRENT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  - LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
 
 # test:
 #   stage: test
@@ -14,19 +20,31 @@ default:
 
 build:
   stage: build
-  image: docker:20.10.6
   services:
     - docker:20.10.6-dind
   # dependencies:
   #   - test
   script:
-    - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
-    - docker pull $CI_REGISTRY_IMAGE:latest || true
+    - docker pull $LATEST_IMAGE || true
     - > 
       docker build
       --pull
       --build-arg VCS_REF=$CI_COMMIT_SHA
       --build-arg VCS_URL=$CI_PROJECT_URL
-      --cache-from $CI_REGISTRY_IMAGE:latest
-      --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
-    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+      --cache-from $LATEST_IMAGE
+      --tag $CURRENT_IMAGE .
+    - docker push $CURRENT_IMAGE
+
+push latest:
+  stage: build
+  only: 
+    - master
+  dependencies:
+    - build
+  variables:
+    - GIT_STRATEGY: none
+  scripts:
+    # In case another runner is used; can be removed if local runner is used instead
+    - docker pull $CURRENT_IMAGE
+    - docker tag $CURRENT_IMAGE $LATEST_IMAGE
+    - docker push $LATEST_IMAGE
