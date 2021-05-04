@@ -1,0 +1,16 @@
+stages:
+  # - build
+  - test
+
+default:
+  image: python:3.9-slim
+
+# build:
+#   stage: build
+#   script: docker build -t api .
+
+test:
+  stage: test
+  script:
+      - python manage.py runserver 0.0.0.0:8000 
+      - python tests/test.py
