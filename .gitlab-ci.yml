@@ -7,7 +7,7 @@ default:
 
 build:
   stage: build
-  # image: docker:20.10.6
+  image: docker:20.10.6
   services:
     - docker:20.10.6-dind
   script:
