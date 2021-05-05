@@ -1,16 +1,16 @@
 stages:
   # - test
   - build
-  - tag
+  # - tag
 
 default:
   image: docker:20.10.6
   before_script:
     - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
 
-variables:
-  CURRENT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-  LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
+# variables:
+#   CURRENT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+#   LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
 
 # test:
 #   stage: test
@@ -24,32 +24,39 @@ build:
   # services:
   #   - docker:20.10.6-dind
   script:
-    - docker pull $LATEST_IMAGE || true
+    - docker pull "$CI_REGISTRY_IMAGE" || true
+    - > 
+      if [[ "$CI_COMMIT_REF" == "$CI_DEFAULT_BRANCH" ]]; then
+        TAG=""
+      elif [[ "$CI_COMMIT_TAG" ]]; then 
+        TAG="$CI_COMMIT_TAG"
+      else
+        TAG="$CI_COMMIT_SHA"
     - > 
       docker build
       --pull
-      --build-arg VCS_REF=$CI_COMMIT_SHA
-      --build-arg VCS_URL=$CI_PROJECT_URL
-      --cache-from $LATEST_IMAGE
-      --tag $CURRENT_IMAGE .
-    - docker push $CURRENT_IMAGE
+      --build-arg VCS_REF="$CI_COMMIT_SHA"
+      --build-arg VCS_URL="$CI_PROJECT_URL"
+      --cache-from "$CI_REGISTRY_IMAGE"
+      --tag "${CI_REGISTRY_IMAGE}:${TAG}" .
+    - docker push "${CI_REGISTRY_IMAGE}:${TAG}"
 
-latest:
-  stage: tag
-  only: 
-    - master
-  variables:
-    GIT_STRATEGY: none
-  script:
-    - docker tag $CURRENT_IMAGE $LATEST_IMAGE
-    - docker push $LATEST_IMAGE
+# latest:
+#   stage: tag
+#   only: 
+#     - master
+#   variables:
+#     GIT_STRATEGY: none
+#   script:
+#     - docker tag $CURRENT_IMAGE $LATEST_IMAGE
+#     - docker push $LATEST_IMAGE
 
-tags:
-  stage: tag
-  only:
-    - tags
-  variables:
-    GIT_STRATEGY: none
-  script:
-    - docker tag $CURRENT_IMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
-    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+# tags:
+#   stage: tag
+#   only:
+#     - tags
+#   variables:
+#     GIT_STRATEGY: none
+#   script:
+#     - docker tag $CURRENT_IMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+#     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
