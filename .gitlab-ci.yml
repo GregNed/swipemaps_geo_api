@@ -8,8 +8,8 @@ default:
     - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
 
 variables:
-  - CURRENT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-  - LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
+  CURRENT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
 
 # test:
 #   stage: test
@@ -22,8 +22,6 @@ build:
   stage: build
   services:
     - docker:20.10.6-dind
-  # dependencies:
-  #   - test
   script:
     - docker pull $LATEST_IMAGE || true
     - > 
@@ -39,12 +37,8 @@ push latest:
   stage: build
   only: 
     - master
-  dependencies:
-    - build
   variables:
-    - GIT_STRATEGY: none
-  scripts:
-    # In case another runner is used; can be removed if local runner is used instead
-    - docker pull $CURRENT_IMAGE
+    GIT_STRATEGY: none
+  script:
     - docker tag $CURRENT_IMAGE $LATEST_IMAGE
     - docker push $LATEST_IMAGE
