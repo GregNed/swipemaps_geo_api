@@ -43,7 +43,9 @@ build:
     - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
       variables:
         TAG: "$CI_COMMIT_SHA"
-    # - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+      variables:
+        TAG: ""
     #   variables:
     #     TAG: "$CI_COMMIT_TA"
           # ("$CI_COMMIT_REF_NAME")
