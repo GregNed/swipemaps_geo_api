@@ -1,16 +1,11 @@
 stages:
   # - test
   - build
-  # - tag
 
 default:
   image: docker:20.10.6
   before_script:
     - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
-
-# variables:
-#   CURRENT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-#   LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
 
 # test:
 #   stage: test
@@ -41,6 +36,10 @@ build:
       --cache-from "$CI_REGISTRY_IMAGE"
       --tag "${CI_REGISTRY_IMAGE}:${TAG}" .
     - docker push "${CI_REGISTRY_IMAGE}:${TAG}"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+
 
 # latest:
 #   stage: tag
