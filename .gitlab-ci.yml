@@ -1,11 +1,4 @@
-stages:
-  # - test
-  - build
-
-default:
-  image: docker:20.10.6
-  before_script:
-    - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+   
 
 # test:
 #   stage: test
@@ -16,18 +9,18 @@ default:
 
 build:
   stage: build
-  # services:
-  #   - docker:20.10.6-dind
+  image: 
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
   script:
-    - docker pull "$CI_REGISTRY_IMAGE" || true
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - > 
-      docker build
-      --pull
-      --build-arg VCS_REF="$CI_COMMIT_SHA"
-      --build-arg VCS_URL="$CI_PROJECT_URL"
-      --cache-from "$CI_REGISTRY_IMAGE"
-      --tag "${CI_REGISTRY_IMAGE}:${TAG}" .
-    - docker push "${CI_REGISTRY_IMAGE}:${TAG}"
+      kaniko/executor
+      --cache=true
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile" 
+      --destination "${CI_REGISTRY_IMAGE}:${TAG}"
   rules:
     - if: "$CI_COMMIT_TAG"
       variables:
