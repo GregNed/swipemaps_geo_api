@@ -1,10 +1,10 @@
 import requests
 
 
-# API_KEY = '5b3ce3597851110001cf6248ec409dc3a99a42bc8a80b2f87c0da955'
-# ORS_ENDPOINT = 'https://api.openrouteservice.org/'
-ORS_ENDPOINT = 'http://localhost:8080'
-PELIAS_ENDPOINT = 'http://localhost:4000/v1'
+API_KEY = '5b3ce3597851110001cf6248ec409dc3a99a42bc8a80b2f87c0da955'
+ORS_ENDPOINT = 'http://ors:8080/ors'
+# PELIAS_ENDPOINT = 'http://localhost:4000/v1'
+PELIAS_ENDPOINT = 'https://api.openrouteservice.org/geocode'
 MOSCOW_CENTER = {
     'focus.point.lon': 37.622311,
     'focus.point.lat': 55.754801
@@ -20,7 +20,7 @@ MMO_BBOX = {
 def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=5):
     """"""
     params = {
-        # 'api_key': API_KEY,
+        'api_key': API_KEY,
         'text': text,
         'layers': 'address,venue',
         'size': max_occurrences,
@@ -39,7 +39,7 @@ def reverse_geocode(location, max_occurrences=5):
     """"""
     lon, lat = location
     params = {
-        # 'api_key': API_KEY,
+        'api_key': API_KEY,
         'point.lon': lon,
         'point.lat': lat,
         'layers': 'address',
@@ -59,7 +59,7 @@ def suggest(location, max_occurrences=5):
     """"""
     lon, lat = location
     params = {
-        # 'api_key': API_KEY,
+        'api_key': API_KEY,
         'point.lon': lon,
         'point.lat': lat,
         'layers': 'address, venue',
@@ -78,10 +78,7 @@ def route(start, end, mode='driving-car', num_alternatives=10):
     """"""
     res = requests.post(
         f'{ORS_ENDPOINT}v2/directions/{mode}',
-        headers={
-            # 'Authorization': API_KEY,
-            'Content-Type': 'application/json'
-        },
+        headers={'Content-Type': 'application/json'},
         json={
             'coordinates': [start, end],
             'alternative_routes': {
