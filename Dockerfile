@@ -5,11 +5,7 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-ENV VIRTUAL_ENV=/opt/venv
-
-RUN python -m venv $VIRTUAL_ENV
-
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+ENV FLASK_APP=app.py
 
 RUN pip install --upgrade pip
 
@@ -21,6 +17,6 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-ENTRYPOINT ["python", "manage.py"]
+ENTRYPOINT ["flask"]
 
-CMD ["runserver", "0.0.0.0:8000"]
+CMD ["run", "--host=0.0.0.0"]
