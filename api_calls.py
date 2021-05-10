@@ -1,4 +1,5 @@
 import requests
+import openrouteservice as ors
 
 
 API_KEY = '5b3ce3597851110001cf6248ec409dc3a99a42bc8a80b2f87c0da955'
@@ -74,19 +75,16 @@ def suggest(location, max_occurrences=5):
     return res.json()
 
 
-def route(start, end, mode='driving-car', num_alternatives=10):
+def directions(start, end, profile):
     """"""
-    res = requests.post(
-        f'{ORS_ENDPOINT}v2/directions/{mode}',
-        headers={'Content-Type': 'application/json'},
-        json={
-            'coordinates': [start, end],
-            'alternative_routes': {
-                'target_count': num_alternatives,
-                'share_factor': 0.6,
-                'weight_factor': 1.4
-            }
-        }
-    )
-    res.raise_for_status()
-    return res.json()
+    client = ors.Client(base_url=ORS_ENDPOINT)
+    res = client.directions(
+        (start, end),
+        profile=profile,
+        instructions=False,
+        alternative_routes={
+            'target_count': 3,
+            'weight_factor': 2.0,
+            'share_factor': 0.8
+        })
+    return res.get('routes', [])
