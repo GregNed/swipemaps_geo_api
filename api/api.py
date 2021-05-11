@@ -2,8 +2,8 @@ from flask import Flask, request
 from flask.json import jsonify
 from openrouteservice.convert import decode_polyline
 
-import api_calls
-import db_calls
+import ors
+import postgis
 from helpers import parse_position
 
 
@@ -18,14 +18,14 @@ def healthcheck():
 @app.route('/geocode/', methods=['GET'])
 def geocode():
     text = request.args.get('text')
-    result = api_calls.geocode(text)
+    result = ors.geocode(text)
     return jsonify(result)
 
 
 @app.route('/reverse/', methods=['GET'])
 def reverse_geocode():
     position = parse_position(request.args.get('point'))
-    result = api_calls.reverse_geocode(position)
+    result = ors.reverse_geocode(position)
     return jsonify(result)
 
 
@@ -34,7 +34,7 @@ def directions():
     start = parse_position(request.args.get('start'))
     end = parse_position(request.args.get('end'))
     profile = request.args.get('profile')
-    routes = api_calls.directions(start, end, profile)
+    routes = ors.directions(start, end, profile)
     geoms = [decode_polyline(route['geometry']) for route in routes]
     features = [{'type': 'Feature', 'geometry': geom} for geom in geoms]
     return jsonify({'type': 'FeatureCollection', 'features': features})
@@ -43,7 +43,7 @@ def directions():
 @app.route('/snap/', methods=['GET'])
 def snap_to_road():
     position = parse_position(request.args.get('position'))
-    snapped = db_calls.snap_to_road(position)
+    snapped = postgis.snap_to_road(position)
     lon, lat = json.loads(snapped)['coordinates']
     return f'{lon},{lat}'
 
