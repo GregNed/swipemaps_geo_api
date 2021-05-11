@@ -5,7 +5,7 @@ from openrouteservice.convert import decode_polyline
 
 import api_calls
 import db_calls
-from helpers import parse_coords
+from helpers import parse_position
 
 
 app = Flask(__name__)
@@ -25,15 +25,15 @@ def geocode():
 
 @app.route('/reverse/', methods=['GET'])
 def reverse_geocode():
-    position = parse_coords(request.args.get('point'))
+    position = parse_position(request.args.get('point'))
     result = api_calls.reverse_geocode(position)
     return json.dumps(result)
 
 
 @app.route('/directions/', methods=['GET'])
 def directions():
-    start = parse_coords(request.args.get('start'))
-    end = parse_coords(request.args.get('end'))
+    start = parse_position(request.args.get('start'))
+    end = parse_position(request.args.get('end'))
     profile = request.args.get('profile')
     routes = api_calls.directions(start, end, profile)
     geoms = [decode_polyline(route['geometry']) for route in routes]
@@ -43,7 +43,7 @@ def directions():
 
 @app.route('/snap/', methods=['GET'])
 def snap_to_road():
-    position = parse_coords(request.args.get('position'))
+    position = parse_position(request.args.get('position'))
     snapped = db_calls.snap_to_road(position)
     lon, lat = json.loads(snapped)['coordinates']
     return f'{lon},{lat}'
