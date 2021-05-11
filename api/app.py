@@ -1,6 +1,5 @@
-import json
-
 from flask import Flask, request
+from flask.json import jsonify
 from openrouteservice.convert import decode_polyline
 
 import api_calls
@@ -13,21 +12,21 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 def healthcheck():
-    return json.dumps({'status': 'OK'})
+    return jsonify({'status': 'OK'})
 
 
 @app.route('/geocode/', methods=['GET'])
 def geocode():
     text = request.args.get('text')
     result = api_calls.geocode(text)
-    return json.dumps(result)
+    return jsonify(result)
 
 
 @app.route('/reverse/', methods=['GET'])
 def reverse_geocode():
     position = parse_position(request.args.get('point'))
     result = api_calls.reverse_geocode(position)
-    return json.dumps(result)
+    return jsonify(result)
 
 
 @app.route('/directions/', methods=['GET'])
@@ -38,7 +37,7 @@ def directions():
     routes = api_calls.directions(start, end, profile)
     geoms = [decode_polyline(route['geometry']) for route in routes]
     features = [{'type': 'Feature', 'geometry': geom} for geom in geoms]
-    return json.dumps({'type': 'FeatureCollection', 'features': features})
+    return jsonify({'type': 'FeatureCollection', 'features': features})
 
 
 @app.route('/snap/', methods=['GET'])
