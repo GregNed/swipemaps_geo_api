@@ -1,3 +1,7 @@
+stages:
+  - test
+  - build
+
 test:
   stage: test
   image: python:3.9-slim
