@@ -1,6 +1,6 @@
-   
 test:
   stage: test
+  image: python:3.9-slim
   script:
     - pip install -r requirements.txt
     - pip install pytest==6.2.4
