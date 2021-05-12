@@ -1,15 +1,15 @@
-import unittest
-import requests
-import json
+import pytest
+
+from api.api import app
 
 
-class TestAPI(unittest.TestCase):
+@pytest.fixture
+def client():
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
 
-    def test_healthcheck(self):
-        res = requests.get('http://localhost:8000/health/')
-        status = json.loads(res.text)['status']
-        self.assertEqual(status, 'OK')
 
-
-if __name__ == '__main__':
-    unittest.main()
+def test_healthcheck(client):
+    res = client.get('/')
+    assert res.get_json().get('status') == 'OK'
