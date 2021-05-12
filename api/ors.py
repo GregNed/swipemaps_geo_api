@@ -75,16 +75,20 @@ def suggest(location, max_occurrences=5):
     return res.json()
 
 
-def directions(start, end, profile):
+def directions(positions, profile):
     """"""
     client = ors.Client(base_url=ORS_ENDPOINT)
-    res = client.directions(
-        (start, end),
-        profile=profile,
-        instructions=False,
-        alternative_routes={
-            'target_count': 3,
-            'weight_factor': 2.0,
-            'share_factor': 0.8
-        })
+    args = {
+        'instructions': False,
+        'profile': profile,
+    }
+    if len(positions) == 2:
+        args |= {
+            'alternative_routes': {
+                'target_count': 3,
+                'weight_factor': 2.0,
+                'share_factor': 0.8
+            }
+        }
+    res = client.directions(positions, **args)
     return res.get('routes', [])
