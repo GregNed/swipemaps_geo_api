@@ -16,6 +16,10 @@ build:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   script:
+    - echo DEFAULT BRANCH "$CI_DEFAULT_BRANCH"
+    - echo COMMIT BRANCH "$CI_COMMIT_BRANCH"
+    - echo TAG "$CI_COMMIT_TAG"
+    - echo COMMIT HASH "$CI_COMMIT_SHA"
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - > 
