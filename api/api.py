@@ -1,7 +1,6 @@
 import json
 
-from flask import Flask, request
-from flask.json import jsonify
+from flask import Flask, request, jsonify
 from openrouteservice.convert import decode_polyline
 
 import ors
