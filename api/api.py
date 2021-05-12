@@ -3,9 +3,9 @@ import json
 from flask import Flask, request, jsonify
 from openrouteservice.convert import decode_polyline
 
-import ors
-import postgis
-from helpers import parse_position
+from api import ors
+from api import postgis
+from api.helpers import parse_position
 
 
 app = Flask(__name__)
