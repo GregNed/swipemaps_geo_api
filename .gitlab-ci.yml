@@ -5,6 +5,9 @@ stages:
 test:
   stage: test
   image: python:3.9-slim
+  services:
+    image: openrouteservice/openrouteservice:v6.4.3
+    alias: ors
   script:
     - pip install -r requirements.txt
     - pip install pytest==6.2.4
