@@ -9,7 +9,7 @@ test:
     - name: openrouteservice/openrouteservice:v6.4.3
       alias: ors
   script:
-    - sleep 180
+    - sleep 60
     - pip install -r requirements.txt
     - pip install pytest==6.2.4
     - pytest -v
