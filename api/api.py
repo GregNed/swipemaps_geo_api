@@ -3,9 +3,9 @@ import json
 from flask import Flask, request, jsonify
 from openrouteservice.convert import decode_polyline
 
-import ors
-import postgis
-from helpers import parse_position
+from api import ors
+from api import postgis
+from api.helpers import parse_position
 
 
 app = Flask(__name__)
@@ -14,6 +14,17 @@ app = Flask(__name__)
 @app.route('/', methods=['GET'])
 def healthcheck():
     return jsonify({'status': 'OK'})
+
+
+@app.route('/directions/', methods=['GET'])
+def directions():
+    profile = request.args.get('profile')
+    positions = request.args.get('positions')
+    positions_parsed = [parse_position(p) for p in positions.split(';')]
+    routes = ors.directions(positions_parsed, profile)
+    geoms = [decode_polyline(route['geometry']) for route in routes]
+    features = [{'type': 'Feature', 'geometry': geom} for geom in geoms]
+    return jsonify({'type': 'FeatureCollection', 'features': features})
 
 
 @app.route('/geocode/', methods=['GET'])
@@ -28,17 +39,6 @@ def reverse_geocode():
     position = parse_position(request.args.get('point'))
     result = ors.reverse_geocode(position)
     return jsonify(result)
-
-
-@app.route('/directions/', methods=['GET'])
-def directions():
-    start = parse_position(request.args.get('start'))
-    end = parse_position(request.args.get('end'))
-    profile = request.args.get('profile')
-    routes = ors.directions(start, end, profile)
-    geoms = [decode_polyline(route['geometry']) for route in routes]
-    features = [{'type': 'Feature', 'geometry': geom} for geom in geoms]
-    return jsonify({'type': 'FeatureCollection', 'features': features})
 
 
 @app.route('/snap/', methods=['GET'])

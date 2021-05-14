@@ -4,6 +4,7 @@ import openrouteservice as ors
 
 API_KEY = '5b3ce3597851110001cf6248ec409dc3a99a42bc8a80b2f87c0da955'
 ORS_ENDPOINT = 'http://ors:8080/ors'
+# ORS_ENDPOINT = 'http://ors-test:8080/ors'
 # PELIAS_ENDPOINT = 'http://localhost:4000/v1'
 PELIAS_ENDPOINT = 'https://api.openrouteservice.org/geocode'
 MOSCOW_CENTER = {
@@ -75,16 +76,20 @@ def suggest(location, max_occurrences=5):
     return res.json()
 
 
-def directions(start, end, profile):
+def directions(positions, profile):
     """"""
     client = ors.Client(base_url=ORS_ENDPOINT)
-    res = client.directions(
-        (start, end),
-        profile=profile,
-        instructions=False,
-        alternative_routes={
-            'target_count': 3,
-            'weight_factor': 2.0,
-            'share_factor': 0.8
-        })
+    args = {
+        'instructions': False,
+        'profile': profile,
+    }
+    if len(positions) == 2:
+        args |= {
+            'alternative_routes': {
+                'target_count': 3,
+                'weight_factor': 2.0,
+                'share_factor': 0.8
+            }
+        }
+    res = client.directions(positions, **args)
     return res.get('routes', [])
