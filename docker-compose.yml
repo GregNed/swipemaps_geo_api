@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   api:
-    image: registry.gitlab.com/dangoclub/geo:dcbace4c
+    image: registry.gitlab.com/dangoclub/geo
     restart: always
     environment:
       FLASK_ENV: "$FLASK_ENV"
