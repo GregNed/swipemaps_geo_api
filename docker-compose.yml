@@ -10,7 +10,7 @@ services:
     networks:
       - geo
     depends_on:
-      - ors
+      ors:
         condition: service_healthy
       pg:
         condition: service_started
