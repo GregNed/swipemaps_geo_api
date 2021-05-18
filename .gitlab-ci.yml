@@ -15,18 +15,13 @@ test:
 
 build:
   stage: build
-  image: 
+  image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   script:
-    - echo DEFAULT BRANCH "$CI_DEFAULT_BRANCH"
-    - echo COMMIT BRANCH "$CI_COMMIT_BRANCH"
-    - echo TAG "$CI_COMMIT_TAG"
-    - echo COMMIT HASH "$CI_COMMIT_SHA"
-    - echo MERGE_REQUEST_ID "$CI_MERGE_REQUEST_ID"
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - > 
+    - >
       /kaniko/executor
       --cache=true
       --context "$CI_PROJECT_DIR"
@@ -39,6 +34,6 @@ build:
     # - if: '($CI_COMMIT_BRANCH) && ($CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH)'
     #   variables:
     #     TAG: "$CI_COMMIT_SHORT_SHA"
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
       variables:
         TAG: "latest"
