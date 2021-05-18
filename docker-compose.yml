@@ -13,9 +13,9 @@ services:
       pg:
         condition: service_started
   ors:
-    image: gnedaev/dango-ors
+    image: registry.gitlab.com/dangoclub/ors
     restart: always
   pg:
-    image: gnedaev/pg-mmo-roads
+    image: registry.gitlab.com/dangoclub/postgis
     restart: always
     
