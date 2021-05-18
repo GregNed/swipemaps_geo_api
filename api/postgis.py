@@ -7,7 +7,7 @@ def snap_to_road(position):
     Accepts a position, returns a Point object.
     """
     # Wrap in try-except
-    with pg.connect("host=pg user=postgres") as conn:
+    with pg.connect("host=pg user=postgres password=postgres") as conn:
         cur = conn.cursor()
         cur.execute("""with
                 pt as (select st_setsrid(st_point(%s, %s), 4326)::geography as geog), 
