@@ -7,8 +7,6 @@ services:
       FLASK_ENV: "$FLASK_ENV"
     ports:
       - "5000:5000"
-    networks:
-      - geo
     depends_on:
       ors:
         condition: service_healthy
@@ -17,14 +15,7 @@ services:
   ors:
     image: gnedaev/dango-ors
     restart: always
-    networks:
-      - geo
   pg:
     image: gnedaev/pg-mmo-roads
     restart: always
-    networks:
-      - geo
-
-networks:
-  geo: {}
     
