@@ -8,6 +8,8 @@ test:
   services:
     - name: openrouteservice/openrouteservice:v6.4.3
       alias: ors
+    - name: registry.gitlab.com/dangoclub/postgis
+      alias: pg
   script:
     - pip install -r requirements.txt
     - pip install pytest==6.2.4
