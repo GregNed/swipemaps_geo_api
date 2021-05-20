@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
 from openrouteservice.convert import decode_polyline
 
-from api import ors
-from api.geom_ops import get_midpoint
-from api.postgis import snap_to_road
-from api.helpers import parse_position
+from . import ors
+from .geom_ops import get_midpoint
+from .postgis import snap_to_road
+from .helpers import parse_position
 
 
 app = Flask(__name__)
@@ -24,6 +24,9 @@ def directions():
     routes = ors.directions(positions_snapped, profile)
     geoms = [decode_polyline(route['geometry']) for route in routes]
     midpoints = [get_midpoint(geom) for geom in geoms]
+    # geoms_encoded = [polyline.encode(geom['coordinates'], geojson=True) for geom in geoms]
+    # geoms_decoded = [polyline.decode(geom) for geom in geoms_encoded]
+    # return jsonify([{'route': route, 'midpoint': midpoint, 'decoded': decoded} for route, midpoint, decoded in zip(geoms_encoded, midpoints, geoms_decoded)])
     routes_fc = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'geometry': geom} for geom in geoms]}
     midpoints_fc = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': midpoint}} for midpoint in midpoints]}
     return jsonify({'routes': routes_fc, 'midpoints': midpoints_fc})
