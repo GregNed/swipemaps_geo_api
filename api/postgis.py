@@ -26,7 +26,7 @@ def snap_to_road(position):
                     order by dist 
                     limit 1
                 ) 
-                select st_asgeojson(st_closestpoint(road.geog::geometry, pt.geog::geometry)) 
+                select st_asgeojson(st_closestpoint(road.geog::geometry, pt.geog::geometry), 5) 
                 from pt, road;
             """, position)
         return json.loads(next(cur)[0])['coordinates']
