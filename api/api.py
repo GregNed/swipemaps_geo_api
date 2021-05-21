@@ -26,7 +26,7 @@ def directions():
     routes = ors.directions(positions_snapped, profile)
     # Decode Google Encoded Polylines into GeoJSON coordinate lists
     route_coords = [decode_polyline(route['geometry'])['coordinates'] for route in routes]
-    sec_to_last_indexes = [coords.index(positions_snapped[-2]) for coords in route_coords]
+    sec_to_last_indexes = [coords.index(list(map(lambda x: round(x, 5), positions_snapped[-2]))) for coords in route_coords]
     route_last_part_coords = [coords[i:] for coords, i in zip(route_coords, sec_to_last_indexes)]
     handles = [get_midpoint(coords) for coords in route_last_part_coords]
     # positions_snapped_fc = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': position}} for position in positions_snapped]}
