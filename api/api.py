@@ -1,9 +1,11 @@
+from geojson import Point, LineString, Feature, FeatureCollection
 from flask import Flask, request, jsonify
 from openrouteservice.convert import decode_polyline
 
-from api import ors
-from api.postgis import snap_to_road
-from api.helpers import parse_position
+from . import ors
+from .geom_ops import get_midpoint
+from .postgis import snap_to_road
+from .helpers import parse_position
 
 
 app = Flask(__name__)
@@ -14,26 +16,37 @@ def healthcheck():
     return jsonify({'status': 'OK'})
 
 
-@app.route('/directions/', methods=['GET'])
-def directions():
-    profile = request.args.get('profile')
+@app.route('/snap/', methods=['GET'])
+def snap():
     positions = request.args.get('positions')
     positions_parsed = [parse_position(p) for p in positions.split(';')]
     positions_snapped = [snap_to_road(p) for p in positions_parsed]
-    routes = ors.directions(positions_snapped, profile)
-    geoms = [decode_polyline(route['geometry']) for route in routes]
-    features = [{'type': 'Feature', 'geometry': geom} for geom in geoms]
-    return jsonify({'type': 'FeatureCollection', 'features': features})
+    return jsonify(FeatureCollection([Feature(i, Point(p)) for i, p in enumerate(positions_snapped)]))
 
 
-@app.route('/geocode/', methods=['GET'])
+@ app.route('/directions/', methods=['GET'])
+def directions():
+    profile = request.args.get('profile')
+    positions = request.args.get('positions')
+    positions_parsed = [parse_position(p) for p in positions.split(';')]  # use GeoJSON utils.map?
+    alternatives = len(positions_parsed) == 2
+    routes = ors.directions(positions_parsed, profile, alternatives)
+    routes_last_parts = routes if alternatives else ors.directions(positions_parsed[-2:], profile)
+    handles = [get_midpoint(route) for route in routes_last_parts]
+    return jsonify({
+        'routes': FeatureCollection([Feature(i, LineString(coords)) for i, coords in enumerate(routes, 1)]),
+        'handles': FeatureCollection([Feature(i, Point(handle)) for i, handle in enumerate(handles, 1)])
+    })
+
+
+@ app.route('/geocode/', methods=['GET'])
 def geocode():
     text = request.args.get('text')
     result = ors.geocode(text)
     return jsonify(result)
 
 
-@app.route('/reverse/', methods=['GET'])
+@ app.route('/reverse/', methods=['GET'])
 def reverse_geocode():
     position = parse_position(request.args.get('point'))
     result = ors.reverse_geocode(position)
