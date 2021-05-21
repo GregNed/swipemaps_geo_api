@@ -26,13 +26,13 @@ def test_healthcheck(client):
 
 def test_directions(client):
     query_params = {
-        # 'positions': ';'.join((POSITION_VEREYSKAYA, POSITION_YASENEVAYA)),
         'positions': ';'.join((HEIDELBERG1, HEIDELBERG2)),
         'profile': 'driving-car'
     }
-    res = client.get('/directions/', query_string=query_params)
-    features = res.get_json().get('features')
-    assert len(features) == 3  # factor out to some config
+    res = client.get('/directions/', query_string=query_params).get_json()
+    routes = res.get('routes')
+    handles = res.get('handles')
+    assert len(routes) == len(handles) == 3  # factor out to some config
 
 
 def test_directions_via(client):
