@@ -29,14 +29,13 @@ def directions():
     profile = request.args.get('profile')
     positions = request.args.get('positions')
     positions_parsed = [parse_position(p) for p in positions.split(';')]  # use GeoJSON utils.map?
-    routes = ors.directions(positions_parsed, profile)
-    route_coords = [decode_polyline(route['geometry'])['coordinates'] for route in routes]
-    sec_to_last_indexes = [coords.index(list(map(lambda x: round(x, 5), positions_parsed[-2]))) for coords in route_coords]
-    route_last_part_coords = [coords[i:] for coords, i in zip(route_coords, sec_to_last_indexes)]
-    handles = [get_midpoint(coords) for coords in route_last_part_coords]
+    alternatives = len(positions_parsed) == 2
+    routes = ors.directions(positions_parsed, profile, alternatives)
+    routes_last_parts = routes if alternatives else ors.directions(positions_parsed[-2:], profile)
+    handles = [get_midpoint(route) for route in routes_last_parts]
     return jsonify({
-        'routes': FeatureCollection([Feature(i, LineString(coords)) for i, coords in enumerate(route_coords)]),
-        'handles': FeatureCollection([Feature(i, Point(handle)) for i, handle in enumerate(handles)]),
+        'routes': FeatureCollection([Feature(i, LineString(coords)) for i, coords in enumerate(routes, 1)]),
+        'handles': FeatureCollection([Feature(i, Point(handle)) for i, handle in enumerate(handles, 1)])
     })
 
 
