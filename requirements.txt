@@ -2,3 +2,4 @@ Flask==1.1.2
 openrouteservice==2.3.3
 psycopg2-binary==2.8.6
 requests==2.25.1
+geojson==2.5.0
