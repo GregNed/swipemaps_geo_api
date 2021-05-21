@@ -91,5 +91,8 @@ def directions(positions, profile):
                 'share_factor': 0.8
             }
         }
-    res = client.directions(positions, **args)
-    return res.get('routes', [])
+    try:
+        res = client.directions(positions, **args)
+        return res.get('routes', [])
+    except ors.exceptions.ApiError:
+        return []
