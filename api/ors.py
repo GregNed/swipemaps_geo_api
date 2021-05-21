@@ -19,6 +19,29 @@ MMO_BBOX = {
 }
 
 
+def directions(positions, profile, alternatives=False):
+    """"""
+    client = ors.Client(base_url=ORS_ENDPOINT)
+    args = {
+        'instructions': False,
+        'profile': profile,
+    }
+    if alternatives:
+        args |= {
+            'alternative_routes': {
+                'target_count': 3,
+                'weight_factor': 2.0,
+                'share_factor': 0.8
+            }
+        }
+    try:
+        res = client.directions(positions, **args)
+        routes = res.get('routes', [])
+        return [ors.convert.decode_polyline(r['geometry'])['coordinates'] for r in routes]
+    except ors.exceptions.ApiError:
+        return []
+
+
 def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=5):
     """"""
     params = {
@@ -74,25 +97,3 @@ def suggest(location, max_occurrences=5):
     )
     res.raise_for_status()
     return res.json()
-
-
-def directions(positions, profile):
-    """"""
-    client = ors.Client(base_url=ORS_ENDPOINT)
-    args = {
-        'instructions': False,
-        'profile': profile,
-    }
-    if len(positions) == 2:
-        args |= {
-            'alternative_routes': {
-                'target_count': 3,
-                'weight_factor': 2.0,
-                'share_factor': 0.8
-            }
-        }
-    try:
-        res = client.directions(positions, **args)
-        return res.get('routes', [])
-    except ors.exceptions.ApiError:
-        return []
