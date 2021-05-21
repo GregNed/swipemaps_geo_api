@@ -24,9 +24,6 @@ def directions():
     routes = ors.directions(positions_snapped, profile)
     geoms = [decode_polyline(route['geometry']) for route in routes]
     midpoints = [get_midpoint(geom) for geom in geoms]
-    # geoms_encoded = [polyline.encode(geom['coordinates'], geojson=True) for geom in geoms]
-    # geoms_decoded = [polyline.decode(geom) for geom in geoms_encoded]
-    # return jsonify([{'route': route, 'midpoint': midpoint, 'decoded': decoded} for route, midpoint, decoded in zip(geoms_encoded, midpoints, geoms_decoded)])
     routes_fc = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'geometry': geom} for geom in geoms]}
     midpoints_fc = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': midpoint}} for midpoint in midpoints]}
     return jsonify({'routes': routes_fc, 'midpoints': midpoints_fc})
