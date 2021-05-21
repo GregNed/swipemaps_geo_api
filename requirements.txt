@@ -3,3 +3,4 @@ openrouteservice==2.3.3
 psycopg2-binary==2.8.6
 requests==2.25.1
 geojson==2.5.0
+Shapely==1.7.1
