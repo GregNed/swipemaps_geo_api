@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 from . import ors
 from .geom_ops import get_midpoint
 from .postgis import snap_to_road
-from .helpers import parse_position
+from .helpers import parse_positions
 
 
 app = Flask(__name__)
@@ -19,21 +19,19 @@ def healthcheck():
 
 @app.route('/snap/', methods=['GET'])
 def snap():
-    positions = request.args.get('positions')
-    positions_parsed = [parse_position(p) for p in positions.split(';')]
+    positions = parse_positions(request.args.get('positions'))
     with ThreadPoolExecutor() as executor:
-        positions_snapped = executor.map(snap_to_road, positions_parsed)
-    return jsonify(FeatureCollection([Feature(i, Point(p)) for i, p in enumerate(positions_snapped, 1)]))
+        snapped = executor.map(snap_to_road, positions)
+    return jsonify(FeatureCollection([Feature(i, Point(p)) for i, p in enumerate(snapped, 1)]))
 
 
 @app.route('/directions/', methods=['GET'])
 def directions():
     profile = request.args.get('profile')
-    positions = request.args.get('positions')
-    positions_parsed = [parse_position(p) for p in positions.split(';')]
-    alternatives = len(positions_parsed) == 2
-    routes = ors.directions(positions_parsed, profile, alternatives)
-    routes_last_parts = routes if alternatives else ors.directions(positions_parsed[-2:], profile)
+    positions = parse_positions(request.args.get('positions'))
+    alternatives = len(positions) == 2
+    routes = ors.directions(positions, profile, alternatives)
+    routes_last_parts = routes if alternatives else ors.directions(positions[-2:], profile)
     handles = [get_midpoint(route) for route in routes_last_parts]
     return jsonify({
         'routes': FeatureCollection([Feature(i, LineString(coords)) for i, coords in enumerate(routes, 1)]),
@@ -50,9 +48,8 @@ def geocode():
 
 @app.route('/reverse/', methods=['GET'])
 def reverse_geocode():
-    position = parse_position(request.args.get('point'))
-    result = ors.reverse_geocode(position)
-    return jsonify(result)
+    position = parse_positions(request.args.get('position'))[0]
+    return jsonify(ors.reverse_geocode(position))
 
 
 if __name__ == '__main__':
