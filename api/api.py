@@ -1,6 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from geojson import Point, LineString, Feature, FeatureCollection
 from flask import Flask, request, jsonify
-from openrouteservice.convert import decode_polyline
 
 from . import ors
 from .geom_ops import get_midpoint
@@ -20,15 +21,16 @@ def healthcheck():
 def snap():
     positions = request.args.get('positions')
     positions_parsed = [parse_position(p) for p in positions.split(';')]
-    positions_snapped = [snap_to_road(p) for p in positions_parsed]
-    return jsonify(FeatureCollection([Feature(i, Point(p)) for i, p in enumerate(positions_snapped)]))
+    with ThreadPoolExecutor() as executor:
+        positions_snapped = executor.map(snap_to_road, positions_parsed)
+    return jsonify(FeatureCollection([Feature(i, Point(p)) for i, p in enumerate(positions_snapped, 1)]))
 
 
-@ app.route('/directions/', methods=['GET'])
+@app.route('/directions/', methods=['GET'])
 def directions():
     profile = request.args.get('profile')
     positions = request.args.get('positions')
-    positions_parsed = [parse_position(p) for p in positions.split(';')]  # use GeoJSON utils.map?
+    positions_parsed = [parse_position(p) for p in positions.split(';')]
     alternatives = len(positions_parsed) == 2
     routes = ors.directions(positions_parsed, profile, alternatives)
     routes_last_parts = routes if alternatives else ors.directions(positions_parsed[-2:], profile)
@@ -39,14 +41,14 @@ def directions():
     })
 
 
-@ app.route('/geocode/', methods=['GET'])
+@app.route('/geocode/', methods=['GET'])
 def geocode():
     text = request.args.get('text')
     result = ors.geocode(text)
     return jsonify(result)
 
 
-@ app.route('/reverse/', methods=['GET'])
+@app.route('/reverse/', methods=['GET'])
 def reverse_geocode():
     position = parse_position(request.args.get('point'))
     result = ors.reverse_geocode(position)
