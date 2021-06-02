@@ -1,4 +1,6 @@
 import os
+import random
+from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 
 from geojson import Point, LineString, Feature, FeatureCollection
@@ -12,6 +14,9 @@ from .helpers import parse_positions
 
 
 app = Flask(__name__)
+app.config.from_object(f'Config{os.environ["FLASK_ENV"]}')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
 
 @app.route('/', methods=['GET'])
@@ -45,6 +50,24 @@ def directions():
     })
 
 
+@app.route('/user/<uuid:user_id>/<uuid:route_id>', methods=['DELETE'])
+def delete_discarded_routes(user_id, route_id):
+    # DB DELETE OTHER ROUTES
+    return ''
+
+
+@app.route('/user/<uuid:user_id>/<uuid:route_id>/sortPassengers', methods=['GET'])
+def sort_passengers(user_id, route_id):
+    # DB
+
+    return jsonify([{
+        'user_id': user_id,
+        'route_id': route_id,
+        'passengers': {
+            'id': uuid4(),
+        }} for _ in range(2, random.randint(3, 10))])
+
+
 @app.route('/geocode/', methods=['GET'])
 def geocode():
     text = request.args.get('text')
@@ -59,4 +82,6 @@ def reverse_geocode():
 
 
 if __name__ == '__main__':
+    print(db)
+    print(app.config)
     app.run()

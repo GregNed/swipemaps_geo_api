@@ -1,5 +1,6 @@
 import json
 import psycopg2 as pg
+from flask import current_app, g
 
 
 conn_info = {
@@ -7,6 +8,11 @@ conn_info = {
     'user': 'postgres',
     'password': 'postgres'
 }
+
+
+# def get_db():
+#     if 'db' not in g:
+#         g.db = pg.connect(current_app.config['SQLALCHEMY_DATABASE_URI'])
 
 
 def snap_to_road(position):
