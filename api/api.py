@@ -14,7 +14,7 @@ from .helpers import parse_positions
 
 
 app = Flask(__name__)
-app.config.from_object(f'Config{os.environ["FLASK_ENV"]}')
+app.config.from_object(f'config.Config{os.environ["FLASK_ENV"]}')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
