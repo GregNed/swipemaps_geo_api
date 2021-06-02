@@ -7,15 +7,14 @@ from geojson import Point, LineString, Feature, FeatureCollection
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 
-from . import ors
-from .geom_ops import get_midpoint
-from .postgis import snap_to_road
-from .helpers import parse_positions
-
+import ors
+from geom_ops import get_midpoint
+from postgis import snap_to_road
+from helpers import parse_positions
 
 app = Flask(__name__)
-app.config.from_object(f'config.Config{os.environ["FLASK_ENV"]}')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+env = os.getenv("FLASK_ENV", 'development')
+app.config.from_object(f'config.{env.capitalize()}Config')
 db = SQLAlchemy(app)
 
 
@@ -82,6 +81,4 @@ def reverse_geocode():
 
 
 if __name__ == '__main__':
-    print(db)
-    print(app.config)
     app.run()

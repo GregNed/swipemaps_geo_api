@@ -1,11 +1,9 @@
 from sqlalchemy.sql.schema import ForeignKey
-from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer
 from geoalchemy2 import Geometry
 
-from .api import db
-from . import postgis
+from api import db
 
 Base = declarative_base()
 
