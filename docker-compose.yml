@@ -17,6 +17,5 @@ services:
     restart: always
   pg:
     image: registry.gitlab.com/dangoclub/postgis
-    user: postgres
     restart: always
     
