@@ -2,13 +2,6 @@ import json
 import psycopg2 as pg
 
 
-conn_info = {
-    'host': 'pg',
-    'user': 'postgres',
-    'password': 'postgres'
-}
-
-
 def snap_to_road(position):
     """Find the closest point on the closest road
 
