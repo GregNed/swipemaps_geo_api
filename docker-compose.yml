@@ -5,8 +5,6 @@ services:
     restart: always
     env_file:
       - .env
-    # environment:
-    #   FLASK_ENV: "$FLASK_ENV"
     ports:
       - "5000:5000"
     depends_on:
@@ -19,5 +17,6 @@ services:
     restart: always
   pg:
     image: registry.gitlab.com/dangoclub/postgis
+    user: postgres
     restart: always
     

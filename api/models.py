@@ -1,23 +1,20 @@
-from sqlalchemy.sql.schema import ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer
+from sqlalchemy.dialects.postgresql import UUID
 from geoalchemy2 import Geometry
 
 from api import db
 
-Base = declarative_base()
 
+class StartPoint(db.Model):
+    __tablename__ = 'start_points'
 
-class StartPoint(Base):
-    __tablename__ = 'start_point'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=False), nullable=False)
+    point = db.Column(Geometry('POINT'))
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    point = Column(Geometry('POINT'))
-
-    def __init__(self, url, result_all, result_no_stop_words):
+    def __init__(self, id, user_id, point):
+        self.id = id
         self.user_id = user_id
         self.point = point
 
     def __repr__(self):
-        return f'<id {self.id}>'
+        return f'<Point {self.id}>'

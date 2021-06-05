@@ -1,21 +1,16 @@
-import os
 import random
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 
 from geojson import Point, LineString, Feature, FeatureCollection
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
+from flask import request, jsonify
 
-from . import ors
-from .geom_ops import get_midpoint
-from .postgis import snap_to_road
-from .helpers import parse_positions
-
-app = Flask(__name__)
-env = os.getenv("FLASK_ENV", 'development')
-app.config.from_object(f'api.config.{env.capitalize()}Config')
-db = SQLAlchemy(app)
+from api import app
+from api import ors
+from api.geom_ops import get_midpoint
+from api.postgis import snap_to_road
+from api.helpers import parse_positions
+from api.models import StartPoint
 
 
 @app.route('/', methods=['GET'])
@@ -36,11 +31,10 @@ def directions():
     profile = request.args.get('profile')
     user_id = request.args.get('user_id')
     positions = parse_positions(request.args.get('positions'))
-    alternatives = len(positions) == 2
-    routes = ors.directions(positions, profile, alternatives)
-    # SAVE TO DB IN A THREAD
+    is_initial = len(positions) == 2
+    routes = ors.directions(positions, profile, is_initial)
     # RETURNS IDS
-    routes_last_parts = routes if alternatives else ors.directions(positions[-2:], profile)
+    routes_last_parts = routes if is_initial else ors.directions(positions[-2:], profile)
     handles = [get_midpoint(route) for route in routes_last_parts]
     return jsonify({
         'user_id': user_id,
@@ -78,7 +72,3 @@ def geocode():
 def reverse_geocode():
     position = parse_positions(request.args.get('position'))[0]
     return jsonify(ors.reverse_geocode(position))
-
-
-if __name__ == '__main__':
-    app.run()

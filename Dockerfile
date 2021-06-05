@@ -5,8 +5,6 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-ENV FLASK_APP=api/api
-
 RUN pip install --upgrade pip
 
 WORKDIR app/
