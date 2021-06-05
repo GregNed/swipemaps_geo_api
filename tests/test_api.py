@@ -1,6 +1,6 @@
 import pytest
+from api import app
 
-from api.api import app
 
 # MOSCOW
 POSITION1 = '55.7109996,37.4362684'
@@ -10,8 +10,6 @@ POSITION3 = '55.6023977,37.723043'
 POSITION1 = '49.418204,8.676581'
 POSITION2 = '49.409465,8.692803'
 POSITION3 = '49.392097,8.686024'
-
-# [8.676581, 49.418204], [8.692803, 49.409465]
 
 
 @pytest.fixture
