@@ -4,17 +4,22 @@ from geoalchemy2 import Geometry
 from api import db
 
 
-class StartPoint(db.Model):
-    __tablename__ = 'start_points'
+class Location(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(UUID(as_uuid=False), nullable=False)
-    point = db.Column(Geometry('POINT'))
-
-    def __init__(self, id, user_id, point):
-        self.id = id
-        self.user_id = user_id
-        self.point = point
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    kind = db.Column(db.String, nullable=False)
+    geom = db.Column(Geometry('POINT', srid=4326, from_text='ST_GeomFromGeoJSON'))
 
     def __repr__(self):
-        return f'<Point {self.id}>'
+        return f'<User {self.user_id} {self.kind} point>'
+
+
+class Route(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    geom = db.Column(Geometry('LineString', srid=4326, from_text='ST_GeomFromGeoJSON'))
+
+    def __repr__(self):
+        return f'<User {self.user_id} route>'

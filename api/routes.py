@@ -3,14 +3,13 @@ from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 
 from geojson import Point, LineString, Feature, FeatureCollection
-from flask import request, jsonify
+from flask import request, jsonify, abort, Response
 
-from api import app
-from api import ors
+from api import app, db, ors
+from api.models import Location, Route
 from api.geom_ops import get_midpoint
 from api.postgis import snap_to_road
 from api.helpers import parse_positions
-from api.models import StartPoint
 
 
 @app.route('/', methods=['GET'])
@@ -33,6 +32,26 @@ def directions():
     positions = parse_positions(request.args.get('positions'))
     is_initial = len(positions) == 2
     routes = ors.directions(positions, profile, is_initial)
+    # SAVE TO DB
+    start_point = Location(
+        geom=str(Point(positions[0])),
+        user_id=user_id,
+        kind='start'
+    )
+    finish_point = Location(
+        geom=str(Point(positions[-1])),
+        user_id=user_id,
+        kind='finish'
+    )
+    db.session().add(start_point)
+    db.session().add(finish_point)
+    for route in routes:
+        route = Route(
+            geom=str(LineString(route)),
+            user_id=user_id
+        )
+        db.session.add(route)
+    db.session.commit()
     # RETURNS IDS
     routes_last_parts = routes if is_initial else ors.directions(positions[-2:], profile)
     handles = [get_midpoint(route) for route in routes_last_parts]
@@ -43,10 +62,14 @@ def directions():
     })
 
 
-@app.route('/user/<uuid:user_id>/<uuid:route_id>', methods=['DELETE'])
+@app.route('/users/<uuid:user_id>/routes/<int:route_id>', methods=['DELETE'])
 def delete_discarded_routes(user_id, route_id):
-    # DB DELETE OTHER ROUTES
-    return ''
+    count_deleted = Route.query.filter(Route.user_id == user_id, Route.id != route_id).delete()
+    if count_deleted:
+        db.session.commit()
+        return str(user_id)
+    else:
+        abort(Response('The requested user and route combination was not found', 404))
 
 
 @app.route('/user/<uuid:user_id>/<uuid:route_id>/sortPassengers', methods=['GET'])
