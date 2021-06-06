@@ -20,18 +20,18 @@ def healthcheck():
 
 @app.route('/snap/', methods=['GET'])
 def snap():
-    positions = parse_positions(request.args.get('positions'))
+    positions = parse_positions(request.json.get('positions'))
     with ThreadPoolExecutor() as executor:
         snapped = executor.map(snap_to_road, positions)
     return jsonify(FeatureCollection([Feature(i, Point(p)) for i, p in enumerate(snapped, 1)]))
 
 
-@app.route('/directions/', methods=['GET'])
+@app.route('/directions/', methods=['POST'])
 def directions():
     # Parse query string params
-    profile = request.args.get('profile')
-    user_id = request.args.get('user_id')
-    positions = parse_positions(request.args.get('positions'))
+    profile = request.json.get('profile')
+    user_id = request.json.get('user_id')
+    positions = parse_positions(request.json.get('positions'))
     # Save start & finish points to DB
     start = Start(
         geom=str(Point(positions[0])),
