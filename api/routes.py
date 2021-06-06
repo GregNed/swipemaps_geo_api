@@ -4,9 +4,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 from geojson import Point, LineString, Feature, FeatureCollection
 from flask import request, jsonify, abort, Response
+from sqlalchemy import func
 
 from api import app, db, ors
-from api.models import Location, Route
+from api.models import Start, Finish, Route
 from api.geom_ops import get_midpoint
 from api.postgis import snap_to_road
 from api.helpers import parse_positions
@@ -27,24 +28,26 @@ def snap():
 
 @app.route('/directions/', methods=['GET'])
 def directions():
+    # Parse query string params
     profile = request.args.get('profile')
     user_id = request.args.get('user_id')
     positions = parse_positions(request.args.get('positions'))
+    # Save start & finish points to DB
+    start = Start(
+        geom=str(Point(positions[0])),
+        user_id=user_id
+    )
+    finish = Finish(
+        geom=str(Point(positions[-1])),
+        user_id=user_id
+    )
+    db.session().add(start)
+    db.session().add(finish)
+    db.session.commit()
+    # If it's 1st routing request for user's session, - request alternatives
     is_initial = len(positions) == 2
     routes = ors.directions(positions, profile, is_initial)
-    # SAVE TO DB
-    start_point = Location(
-        geom=str(Point(positions[0])),
-        user_id=user_id,
-        kind='start'
-    )
-    finish_point = Location(
-        geom=str(Point(positions[-1])),
-        user_id=user_id,
-        kind='finish'
-    )
-    db.session().add(start_point)
-    db.session().add(finish_point)
+    # Save routes to DB
     for route in routes:
         route = Route(
             geom=str(LineString(route)),
@@ -52,7 +55,7 @@ def directions():
         )
         db.session.add(route)
     db.session.commit()
-    # RETURNS IDS
+    # Get handles
     routes_last_parts = routes if is_initial else ors.directions(positions[-2:], profile)
     handles = [get_midpoint(route) for route in routes_last_parts]
     return jsonify({
@@ -72,10 +75,13 @@ def delete_discarded_routes(user_id, route_id):
         abort(Response('The requested user and route combination was not found', 404))
 
 
-@app.route('/user/<uuid:user_id>/<uuid:route_id>/sortPassengers', methods=['GET'])
+@app.route('/sortPassengers', methods=['GET'])
 def sort_passengers(user_id, route_id):
-    # DB
-
+    user_id = request.args.get('user_id')
+    route_id = request.args.get('route_id')
+    user_start = Location.query.filter(Location.user_id == user_id, Location.kind == 'start').first_or_404()
+    user_finish = Location.query.filter(Location.user_id == user_id, Location.kind == 'finish').first_or_404()
+    candidates = Location.query.order_by('user_id')
     return jsonify([{
         'user_id': user_id,
         'route_id': route_id,
