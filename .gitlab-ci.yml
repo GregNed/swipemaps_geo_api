@@ -12,6 +12,7 @@ test:
       alias: pg
   script:
     - pip install -r requirements.txt
+    - flask db upgrade
     - pip install pytest==6.2.4
     - pytest -v
 
