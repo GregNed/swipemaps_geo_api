@@ -61,45 +61,41 @@ def directions():
 def delete_discarded_routes(route_id):
     user_id = request.args.get('user_id')
     trip_id = request.json.get('trip_id')
-    count_deleted = Route.query.filter(
-        Route.user_id == user_id,
-        Route.id != route_id,
-        Route.trip_id == None
-    ).delete()
-    db.session.commit()
-    if count_deleted == 0:
-        abort(Response('User and route combination not found', 404))
-    Route.query.get(route_id).trip_id = trip_id
-    db.session.commit()
-    return ''
+    try:
+        count_deleted = Route.query.filter(
+            Route.user_id == user_id,
+            Route.id != route_id,
+            Route.trip_id == None
+        ).delete()
+        if count_deleted == 0:
+            abort(Response('User and route combination not found', 404))
+        Route.query.get_or_404(route_id).trip_id = trip_id
+    except Exception as e:
+        db.session.rollback()
+        return e
+    else:
+        db.session.commit()
+        return ''
 
 
 @app.route('/candidates', methods=['GET'])
 def get_candidates():
-    user_id = request.args.get('user_id')
     route_id = request.args.get('route_id')
+    candidate_route_ids = request.args.get('candidate_route_ids').split(',')
     route = Route.query.get_or_404(route_id)
-    if route.route:
-        candidates = Route.query.filter(Route.route == None)
-    else:
-        candidates = Route.query.filter(Route.route != None)
-    # candidates.order_by(func.ST_DWithin())
-    # return jsonify([{
-    #     'user_id': user_id,
-    #     'route_id': route_id,
-    #     'passengers': {
-    #         'id': uuid4(),
-    #     }} for _ in range(2, random.randint(3, 10))])
+    candidate_routes_sorted = Route.query.filter(Route.trip_id != None, Route.id.in_(candidate_route_ids)).order_by(func.ST_Distance(Route.start, route.start))
+    candidate_ids = [route.id for route in candidate_routes_sorted]
+    return jsonify(candidate_ids)
 
 
-@app.route('/geocode/', methods=['GET'])
+@ app.route('/geocode/', methods=['GET'])
 def geocode():
     text = request.args.get('text')
     result = ors.geocode(text)
     return jsonify(result)
 
 
-@app.route('/reverse/', methods=['GET'])
+@ app.route('/reverse/', methods=['GET'])
 def reverse_geocode():
     position = parse_positions(request.args.get('position'))[0]
     return jsonify(ors.reverse_geocode(position))
