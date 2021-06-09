@@ -1,8 +1,8 @@
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 
-import requests
-
+import shapely_geojson
+from geoalchemy2.shape import to_shape
 from geojson import Point, LineString, Feature, FeatureCollection
 from flask import request, jsonify, abort, Response
 from sqlalchemy import func
@@ -57,7 +57,20 @@ def directions():
     })
 
 
-@app.route('/routes/<uuid:route_id>', methods=['PUT'])
+@app.route('/routes/<uuid:route_id>', methods=['GET'])
+def get_route(route_id):
+    route = Route.query.get_or_404(route_id)
+    if route.route:
+        response = shapely_geojson.dumps(shapely_geojson.Feature(to_shape(route.route)))
+    else:
+        response = [
+            shapely_geojson.dumps(shapely_geojson.Feature(to_shape(route.start))),
+            shapely_geojson.dumps(shapely_geojson.Feature(to_shape(route.finish)))
+        ]
+    return response
+
+
+@ app.route('/routes/<uuid:route_id>', methods=['PUT'])
 def delete_discarded_routes(route_id):
     user_id = request.args.get('user_id')
     trip_id = request.json.get('trip_id')
