@@ -36,8 +36,11 @@ def directions(positions, profile, alternatives=False):
         }
     try:
         res = client.directions(positions, **args)
-        routes = res.get('routes', [])
-        return [ors.convert.decode_polyline(r['geometry'])['coordinates'] for r in routes]
+        return [{
+            'geometry': ors.convert.decode_polyline(route['geometry'])['coordinates'],
+            'distance': route['summary']['distance'],
+            'duration': route['summary']['duration']
+        } for route in res.get('routes', [])]
     except ors.exceptions.ApiError:
         return []
 

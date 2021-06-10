@@ -2,14 +2,14 @@ from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 
 import shapely_geojson
-from geoalchemy2.shape import to_shape
+import shapely.geometry
 from geojson import Point, LineString, Feature, FeatureCollection
 from flask import request, jsonify, abort, Response
 from sqlalchemy import func
+from geoalchemy2.shape import to_shape
 
 from api import app, db, ors
 from api.models import Route
-from api.geom_ops import get_midpoint
 from api.postgis import snap_to_road
 from api.helpers import parse_positions
 
@@ -29,32 +29,54 @@ def snap():
 
 @app.route('/directions/', methods=['POST'])
 def directions():
-    # Parse query string params
+    # Validate the profile param
+    available_profiles = ('driving-car', 'foot-walking')
     profile = request.json.get('profile')
+    if profile not in available_profiles:
+        abort(Response(f'profile must be one of {available_profiles}', 400))
     user_id = request.json.get('user_id')
     positions = parse_positions(request.json.get('positions'))
-    # If it's driver's 1st routing request, do with alternatives
-    is_initial = (profile == 'driving-car') and (len(positions) == 2)
-    routes = ors.directions(positions, profile, is_initial)
-    # Save routes to DB
-    route_ids = [uuid4() for route in routes]
-    for index, route in enumerate(routes):
-        db.session.add(Route(
-            id=route_ids[index],
-            user_id=user_id,
-            route=str(LineString(route)),
-            start=str(Point(positions[0])),
-            finish=str(Point(positions[-1]))
-        ))
+    start = Point(positions[0])
+    finish = Point(positions[-1])
+    if profile == 'driving-car':
+        # If it's driver's 1st routing request, do with alternatives
+        is_initial = len(positions) == 2
+        routes = ors.directions(positions, profile, is_initial)
+        # Save routes to DB
+        route_ids = [uuid4() for route in routes]
+        for route, route_id in zip(routes, route_ids):
+            db.session.add(Route(
+                id=route_id,
+                user_id=user_id,
+                route=str(LineString(route['geometry'])),
+                start=str(start),
+                finish=str(finish),
+                distance=route['distance'],
+                duration=route['duration']
+            ))
+        # Get midpoints of the route's last segment for the user to drag on the screen
+        routes_last_parts = routes if is_initial else ors.directions(positions[-2:], profile)
+        routes_last_parts = [route['geometry'] for route in routes_last_parts]
+        handles = [shapely.geometry.LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
+        handles = [Point(handle.coords[0]) for handle in handles]
+        # Format routes & handles for the response
+        routes = FeatureCollection([
+            Feature(
+                id=route_id,
+                geometry=LineString(route['geometry']),
+                properties={
+                    'distance': route['distance'],
+                    'duration': route['duration']
+                })
+            for route_id, route in zip(route_ids, routes)])
+        handles = FeatureCollection([Feature(route_id, handle) for route_id, handle in zip(route_ids, handles)])
+    elif profile == 'foot-walking':
+        route_id = uuid4()
+        db.session.add(Route(id=route_id, user_id=user_id, start=str(start), finish=str(finish)))
+        routes = FeatureCollection([Feature(route_id, LineString([start, finish]))])
+        handles = []
     db.session.commit()
-    # Get handles
-    routes_last_parts = routes if is_initial else ors.directions(positions[-2:], profile)
-    handles = [get_midpoint(route) for route in routes_last_parts]
-    return jsonify({
-        'user_id': user_id,
-        'routes': FeatureCollection([Feature(i, LineString(route)) for i, route in zip(route_ids, routes)]),
-        'handles': FeatureCollection([Feature(i, Point(handle)) for i, handle in zip(route_ids, handles)])
-    })
+    return jsonify({'user_id': user_id, 'routes': routes, 'handles': handles})
 
 
 @app.route('/routes/<uuid:route_id>', methods=['GET'])
