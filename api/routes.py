@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import shapely_geojson
 import shapely.geometry
+from shapely.ops import nearest_points
 from geojson import Point, LineString, Feature, FeatureCollection
 from flask import request, jsonify, abort, Response
 from sqlalchemy import func
@@ -27,11 +28,28 @@ def directions():
     profile = request.json.get('profile')
     if profile not in available_profiles:
         abort(Response(f'Profile must be one of {available_profiles}', 400))
-    user_id = request.json.get('user_id')
     positions = parse_positions(request.json.get('positions'))
-    make_route = request.json.get('make_route', True)
+    from_route_id = request.json.get('from_route_id')
+    to_route_id = request.json.get('to_route_id')
+    if from_route_id and to_route_id:
+        from_point, to_point = nearest_points(
+            to_shape(Route.query.get_or_404(from_route_id).route),
+            to_shape(Route.query.get_or_404(to_route_id).route)
+        )
+        positions.insert(0, from_point.coords[0])
+        positions.append(to_point.coords[0])
+    if from_route_id:
+        route = Route.query.get_or_404(from_route_id)
+        nearest_point = nearest_points(to_shape(route.route), shapely.geometry.Point(positions[0]))[0]
+        positions.insert(0, nearest_point.coords[0])
+    if to_route_id:
+        route = Route.query.get_or_404(to_route_id)
+        nearest_point = nearest_points(to_shape(route.route), shapely.geometry.Point(positions[0]))[0]
+        positions.append(nearest_point.coords[0])
     start = Point(positions[0])
     finish = Point(positions[-1])
+    user_id = request.json.get('user_id')
+    make_route = request.json.get('make_route', True)
     handles = []
     if make_route:
         # If it's driver's 1st routing request, do with alternatives
