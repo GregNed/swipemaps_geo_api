@@ -114,12 +114,8 @@ def delete_discarded_routes(route_id):
     user_id = request.args.get('user_id')
     trip_id = request.json.get('trip_id')
     try:
-        count_deleted = Route.query.filter(
-            Route.user_id == user_id,
-            Route.id != route_id,
-            Route.trip_id == None
-        ).delete()
-        if count_deleted == 0:
+        count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
+        if count == 0:
             abort(Response('User and route combination not found', 404))
         Route.query.get_or_404(route_id).trip_id = trip_id
         db.session.commit()
@@ -128,7 +124,7 @@ def delete_discarded_routes(route_id):
         return Response('Such trip id already exists in the database', 400)
     except Exception as e:
         db.session.rollback()
-        abort(400)
+        return Response(e, 400)
     else:
         return ''
 
