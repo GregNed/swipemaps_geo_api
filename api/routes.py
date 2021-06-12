@@ -1,7 +1,6 @@
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 
-import shapely_geojson
 import shapely.geometry
 from shapely.ops import nearest_points
 from geojson import Point, LineString, Feature, FeatureCollection
@@ -95,15 +94,19 @@ def directions():
 @app.route('/routes/<uuid:route_id>', methods=['GET'])
 def get_route(route_id):
     route = Route.query.get_or_404(route_id)
-    if route.route:
-        response = shapely_geojson.dumps(shapely_geojson.Feature(to_shape(route.route)))
+    if not route.route or request.args.get('full', 'true').lower() == 'false':
+        return {
+            'route': Feature(geometry=LineString([
+                to_shape(route.start).coords[0],
+                to_shape(route.finish).coords[0],
+            ])),
+            'full': False
+        }
     else:
-        response = [
-            shapely_geojson.dumps(shapely_geojson.Feature(to_shape(route.start))),
-            shapely_geojson.dumps(shapely_geojson.Feature(to_shape(route.finish)))
-        ]
-    # return jsonify({'r': response)
-    return ''
+        return {
+            'route': Feature(geometry=to_shape(route.route)),
+            'full': True
+        }
 
 
 @app.route('/routes/<uuid:route_id>', methods=['PUT'])
