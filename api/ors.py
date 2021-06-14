@@ -101,7 +101,7 @@ def suggest(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX):
         'boundary.rect.max_lon': se[1],
         'boundary.rect.max_lat': se[0]
     }
-    res = requests.get(f'{PELIAS_ENDPOINT}/autocomplete', params=params, headers={'Content-Type': 'text/plain; charset=utf-8'})
+    res = requests.get(f'{PELIAS_ENDPOINT}/autocomplete', params=params)
     res.raise_for_status()
     return [{
         'geometry': feature['geometry'],
