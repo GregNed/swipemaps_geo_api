@@ -2,7 +2,7 @@ FROM python:3.9-slim
 
 RUN apt-get update && \
     apt-get --no-install-recommends upgrade -y && \
-    apt-get install curl jq && \
+    apt-get install -y curl jq && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
