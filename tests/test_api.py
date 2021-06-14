@@ -29,9 +29,10 @@ def test_directions(client):
     body = {
         'positions': [POSITION1, POSITION2],
         'profile': 'driving-car',
+        'make_route': True,
         'user_id': '48f7c3ad-c32c-412e-ba7e-43ec4d2bc54e'
     }
-    res = client.post('/directions/', json=body).get_json()
+    res = client.post('/directions', json=body).get_json()
     routes = res['routes']['features']
     handles = res['handles']['features']
     assert len(routes) == len(handles) == 3  # factor out to some config
@@ -41,9 +42,10 @@ def test_directions_via(client):
     body = {
         'positions': [POSITION1, POSITION2, POSITION3],
         'profile': 'driving-car',
+        'make_route': True,
         'user_id': '48f7c3ad-c32c-412e-ba7e-43ec4d2bc54e'
     }
-    res = client.post('/directions/', json=body).get_json()
+    res = client.post('/directions', json=body).get_json()
     routes = res['routes']['features']
     handles = res['handles']['features']
     assert len(routes) == len(handles) == 1
