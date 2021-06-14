@@ -1,5 +1,4 @@
 from uuid import uuid4
-from concurrent.futures import ThreadPoolExecutor
 
 import shapely.geometry
 from shapely.ops import nearest_points
@@ -11,8 +10,6 @@ from geoalchemy2.shape import to_shape
 
 from api import app, db, ors
 from api.models import Route
-from api.postgis import snap_to_road
-from api.helpers import parse_positions
 
 
 @app.route('/', methods=['GET'])
@@ -20,14 +17,14 @@ def healthcheck():
     return jsonify({'status': 'OK'})
 
 
-@app.route('/directions/', methods=['POST'])
+@app.route('/directions', methods=['POST'])
 def directions():
     # Parse the request
     available_profiles = ('driving-car', 'foot-walking')
     profile = request.json.get('profile')
     if profile not in available_profiles:
         abort(Response(f'Profile must be one of {available_profiles}', 400))
-    positions = parse_positions(request.json.get('positions'))
+    positions = [[position[1], position[0]] for position in request.json.get('positions')]
     from_route_id = request.json.get('from_route_id')
     to_route_id = request.json.get('to_route_id')
     if from_route_id and to_route_id:
@@ -114,12 +111,8 @@ def delete_discarded_routes(route_id):
     user_id = request.args.get('user_id')
     trip_id = request.json.get('trip_id')
     try:
-        count_deleted = Route.query.filter(
-            Route.user_id == user_id,
-            Route.id != route_id,
-            Route.trip_id == None
-        ).delete()
-        if count_deleted == 0:
+        count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
+        if count == 0:
             abort(Response('User and route combination not found', 404))
         Route.query.get_or_404(route_id).trip_id = trip_id
         db.session.commit()
@@ -128,7 +121,7 @@ def delete_discarded_routes(route_id):
         return Response('Such trip id already exists in the database', 400)
     except Exception as e:
         db.session.rollback()
-        abort(400)
+        return Response(e, 400)
     else:
         return ''
 
@@ -143,22 +136,50 @@ def get_candidates():
     return jsonify(candidate_ids)
 
 
-@app.route('/geocode/', methods=['GET'])
+@app.route('/geocode', methods=['GET'])
 def geocode():
     text = request.args.get('text')
     result = ors.geocode(text)
-    return jsonify(result)
+    return jsonify(result) or abort(404)
 
 
-@app.route('/reverse/', methods=['GET'])
+@app.route('/reverse', methods=['GET'])
 def reverse_geocode():
-    position = parse_positions(request.args.get('position'))[0]
-    return jsonify(ors.reverse_geocode(position))
+    try:
+        position = [float(coord) for coord in request.args.get('position', '').split(',')][0:2]
+        return ors.reverse_geocode(position) or abort(404)
+    except ValueError:
+        abort(400)
 
 
-@app.route('/snap/', methods=['GET'])
-def snap():
-    positions = parse_positions(request.json.get('positions'))
-    with ThreadPoolExecutor() as executor:
-        snapped = executor.map(snap_to_road, positions)
-    return jsonify(FeatureCollection([Feature(i, Point(p)) for i, p in enumerate(snapped, 1)]))
+@app.route('/suggest', methods=['GET'])
+def suggest():
+    text = request.args.get('text')
+    result = ors.suggest(text)
+    return jsonify(FeatureCollection([
+        Feature(
+            geometry=feature['geometry'],
+            properties=feature['properties']
+        ) for feature in result]
+    )) if result else abort(404)
+
+
+# @app.route('/snap', methods=['GET'])
+# def snap():
+#     try:
+#         position = [float(coord) for coord in request.args.get('position', '').split(',')]
+#         return jsonify(snap_to_road(position))
+#     except ValueError:
+#         abort(400)
+    # """with
+    #             pt as (select st_setsrid(st_point(%s, %s), 4326)::geography as geog),
+    #             road as (
+    #                 select roads.geog, st_distance(pt.geog, roads.geog) as dist
+    #                 from roads join pt
+    #                 on st_dwithin(roads.geog, pt.geog, 1000)
+    #                 order by dist
+    #                 limit 1
+    #             )
+    #             select st_asgeojson(st_closestpoint(road.geog::geometry, pt.geog::geometry))
+    #             from pt, road;
+    #         """

@@ -7,16 +7,8 @@ ORS_ENDPOINT = 'http://ors:8080/ors'
 # ORS_ENDPOINT = 'http://ors-test:8080/ors'
 # PELIAS_ENDPOINT = 'http://localhost:4000/v1'
 PELIAS_ENDPOINT = 'https://api.openrouteservice.org/geocode'
-MOSCOW_CENTER = {
-    'focus.point.lon': 37.622311,
-    'focus.point.lat': 55.754801
-}
-MMO_BBOX = {
-    "boundary.rect.min_lon": 35.1484940,
-    "boundary.rect.min_lat": 54.2556960,
-    "boundary.rect.max_lon": 40.2056880,
-    "boundary.rect.max_lat": 56.9585110
-}
+MOSCOW_CENTER = [55.754801, 37.622311]
+MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
 
 
 def directions(positions, profile, alternatives=False):
@@ -45,58 +37,77 @@ def directions(positions, profile, alternatives=False):
         return []
 
 
-def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=5):
+def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
     """"""
+    try:
+        focus_lat, focus_lon = focus
+        nw, se = bbox
+        params = {
+            'api_key': API_KEY,
+            'text': text,
+            'layers': 'address,venue',
+            'size': max_occurrences,
+            'sources': 'openstreetmap',
+            'focus.point.lon': focus_lon,
+            'focus.point.lat': focus_lat,
+            'boundary.country': 'RU',
+            'boundary.rect.min_lon': nw[1],
+            'boundary.rect.min_lat': nw[0],
+            'boundary.rect.max_lon': se[1],
+            'boundary.rect.max_lat': se[0]
+
+        }
+        res = requests.get(f'{PELIAS_ENDPOINT}/search', params=params)
+        res.raise_for_status()
+        return res.json()['features'][0]['geometry']['coordinates']
+    except IndexError:
+        return []
+
+
+def reverse_geocode(location, max_occurrences=1):
+    """"""
+    try:
+        lat, lon = location
+        params = {
+            'api_key': API_KEY,
+            'point.lon': lon,
+            'point.lat': lat,
+            'layers': 'address',
+            'size': max_occurrences,
+            'boundary.country': 'RU',
+            'sources': 'openstreetmap'
+        } | MOSCOW_CENTER | MMO_BBOX
+        res = requests.get(f'{PELIAS_ENDPOINT}/reverse', params=params)
+        res.raise_for_status()
+        return res.json()['features'][0]['properties']['name']
+    except IndexError:
+        return ''
+
+
+def suggest(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX):
+    """"""
+    focus_lat, focus_lon = focus
+    nw, se = bbox
     params = {
         'api_key': API_KEY,
         'text': text,
         'layers': 'address,venue',
-        'size': max_occurrences,
+        'sources': 'openstreetmap',
+        'focus.point.lon': focus_lon,
+        'focus.point.lat': focus_lat,
         'boundary.country': 'RU',
-        'sources': 'openstreetmap'
-    } | MOSCOW_CENTER | MMO_BBOX
-    res = requests.get(
-        PELIAS_ENDPOINT + '/search',
-        params=params
-    )
+        'boundary.rect.min_lon': nw[1],
+        'boundary.rect.min_lat': nw[0],
+        'boundary.rect.max_lon': se[1],
+        'boundary.rect.max_lat': se[0]
+    }
+    res = requests.get(f'{PELIAS_ENDPOINT}/autocomplete', params=params, headers={'Content-Type': 'text/plain; charset=utf-8'})
     res.raise_for_status()
-    return res.json()
-
-
-def reverse_geocode(location, max_occurrences=5):
-    """"""
-    lon, lat = location
-    params = {
-        'api_key': API_KEY,
-        'point.lon': lon,
-        'point.lat': lat,
-        'layers': 'address',
-        'size': max_occurrences,
-        'boundary.country': 'RU',
-        'sources': 'openstreetmap'
-    } | MOSCOW_CENTER | MMO_BBOX
-    res = requests.get(
-        PELIAS_ENDPOINT + '/reverse',
-        params=params
-    )
-    res.raise_for_status()
-    return res.json()
-
-
-def suggest(location, max_occurrences=5):
-    """"""
-    lon, lat = location
-    params = {
-        'api_key': API_KEY,
-        'point.lon': lon,
-        'point.lat': lat,
-        'layers': 'address, venue',
-        'boundary.country': 'RU',
-        'sources': 'openstreetmap'
-    } | MOSCOW_CENTER | MMO_BBOX
-    res = requests.get(
-        PELIAS_ENDPOINT + '/autocomplete',
-        params=params
-    )
-    res.raise_for_status()
-    return res.json()
+    return [{
+        'geometry': feature['geometry'],
+        'properties': {
+            'label': feature['properties']['label'],
+            'distance': feature['properties']['distance'],
+            'type': feature['properties']['layer']
+        }
+    } for feature in res.json()['features'] if feature['properties']['region'].startswith('Moscow')]

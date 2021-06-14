@@ -9,6 +9,9 @@ RUN pip install --upgrade pip
 
 WORKDIR app/
 
+HEALTHCHECK --start-period=10s --interval=3s --timeout=3s --retries=3 \
+    CMD [ $(curl  'http://localhost:5000' | jq -r '.status') = 'OK' ]
+
 COPY requirements.txt .
 
 RUN pip install -r requirements.txt
