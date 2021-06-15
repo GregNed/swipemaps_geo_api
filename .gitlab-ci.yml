@@ -10,6 +10,13 @@ test:
       alias: ors
     - name: registry.gitlab.com/dangoclub/postgis
       alias: pg
+  only:
+    changes:
+      - app.py
+      - api/*.py
+      - tests/*.py
+      - migrations/alembic.ini
+      - migrations/**/*.py
   script:
     - pip install -r requirements.txt
     - flask db upgrade
@@ -21,6 +28,16 @@ build:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  only:
+    refs:
+      - master
+      - tags
+    changes:
+      - app.py
+      - api/*.py
+      - Dockerfile
+      - .dockerignore
+      - requirements.txt
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
@@ -30,13 +47,13 @@ build:
       --context "$CI_PROJECT_DIR"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile" 
       --destination "${CI_REGISTRY_IMAGE}:${TAG}"
-  rules:
-    - if: "$CI_COMMIT_TAG"
-      variables:
-        TAG: "$CI_COMMIT_TAG"
+  # rules:
+  #   - if: "$CI_COMMIT_TAG"
+  #     variables:
+  #       TAG: "$CI_COMMIT_TAG"
     # - if: '($CI_COMMIT_BRANCH) && ($CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH)'
     #   variables:
     #     TAG: "$CI_COMMIT_SHORT_SHA"
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
-      variables:
-        TAG: "latest"
+    # - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+    #   variables:
+    #     TAG: "latest"
