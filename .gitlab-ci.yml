@@ -12,6 +12,7 @@ test:
       alias: pg
   only:
     changes:
+      - .gitlab-ci.yml
       - app.py
       - api/*.py
       - tests/*.py
@@ -33,6 +34,7 @@ build:
       - master
       - tags
     changes:
+      - .gitlab-ci.yml
       - app.py
       - api/*.py
       - Dockerfile
