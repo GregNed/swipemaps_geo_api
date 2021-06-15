@@ -64,19 +64,27 @@ def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
         return []
 
 
-def reverse_geocode(location, max_occurrences=1):
+def reverse_geocode(location, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
     """"""
     try:
         lat, lon = location
+        focus_lat, focus_lon = focus
+        nw, se = bbox
         params = {
             'api_key': API_KEY,
             'point.lon': lon,
             'point.lat': lat,
             'layers': 'address',
+            'sources': 'openstreetmap',
             'size': max_occurrences,
+            'focus.point.lon': focus_lon,
+            'focus.point.lat': focus_lat,
             'boundary.country': 'RU',
-            'sources': 'openstreetmap'
-        } | MOSCOW_CENTER | MMO_BBOX
+            'boundary.rect.min_lon': nw[1],
+            'boundary.rect.min_lat': nw[0],
+            'boundary.rect.max_lon': se[1],
+            'boundary.rect.max_lat': se[0],
+        }
         res = requests.get(f'{PELIAS_ENDPOINT}/reverse', params=params)
         res.raise_for_status()
         return res.json()['features'][0]['properties']['name']
