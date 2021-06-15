@@ -1,5 +1,5 @@
 .vscode/
-docker-compose.local.yml
+*.local*
 
 __pycache__/
 *.py[cod]
