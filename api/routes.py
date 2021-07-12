@@ -34,11 +34,11 @@ def directions():
         )
         positions.insert(0, from_point.coords[0])
         positions.append(to_point.coords[0])
-    if from_route_id:
+    elif from_route_id:
         route = Route.query.get_or_404(from_route_id)
         nearest_point = nearest_points(to_shape(route.route), shapely.geometry.Point(positions[0]))[0]
         positions.insert(0, nearest_point.coords[0])
-    if to_route_id:
+    elif to_route_id:
         route = Route.query.get_or_404(to_route_id)
         nearest_point = nearest_points(to_shape(route.route), shapely.geometry.Point(positions[0]))[0]
         positions.append(nearest_point.coords[0])
