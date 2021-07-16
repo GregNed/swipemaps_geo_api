@@ -1,3 +1,5 @@
+from typing import Optional
+
 import requests
 import openrouteservice as ors
 
@@ -11,7 +13,7 @@ MOSCOW_CENTER = [55.754801, 37.622311]
 MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
 
 
-def directions(positions, profile, alternatives=False):
+def directions(positions: list[float], profile: str, alternatives: bool = False) -> list[Optional[dict]]:
     """"""
     client = ors.Client(base_url=ORS_ENDPOINT)
     args = {
@@ -30,8 +32,9 @@ def directions(positions, profile, alternatives=False):
         res = client.directions(positions, **args)
         return [{
             'geometry': ors.convert.decode_polyline(route['geometry'])['coordinates'],
-            'distance': route['summary']['distance'],
-            'duration': route['summary']['duration']
+            # Distance & duration are missing for single-segment routes apparently
+            'distance': route['summary'].get('distance', 0),
+            'duration': route['summary'].get('duration', 0)
         } for route in res.get('routes', [])]
     except ors.exceptions.ApiError:
         return []
