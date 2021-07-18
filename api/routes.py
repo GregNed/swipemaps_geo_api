@@ -1,10 +1,9 @@
 import json
-from typing import Callable
 from uuid import uuid4
 
 import pyproj
-from shapely.geometry import Point, LineString, MultiLineString, mapping
-from shapely.ops import nearest_points, substring, snap, linemerge, unary_union, split
+from shapely.geometry import Point, LineString, mapping
+from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
 from flask import request, jsonify, abort, Response
 from sqlalchemy import func
@@ -135,6 +134,7 @@ def directions():
             db.session.add(Route(
                 id=route_id,
                 user_id=user_id,
+                profile=profile,
                 # change to accept WKT/WKB
                 route=json.dumps(mapping(LineString(route['geometry']))),
                 start=json.dumps(mapping(start)),
@@ -161,6 +161,7 @@ def directions():
         db.session.add(Route(
             id=route_id,
             user_id=user_id,
+            profile=profile,
             start=json.dumps(mapping(start)),
             finish=json.dumps(mapping(finish))
         ))

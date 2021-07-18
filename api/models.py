@@ -9,6 +9,7 @@ class Route(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True)
     user_id = db.Column(UUID(as_uuid=True), nullable=False)
     trip_id = db.Column(UUID(as_uuid=True), unique=True)
+    profile = db.Column(db.Text, nullable=False)
     route = db.Column(Geography('LineString', srid=4326, from_text='ST_GeomFromGeoJSON'))
     start = db.Column(Geography('Point', srid=4326, from_text='ST_GeomFromGeoJSON'), nullable=False)
     finish = db.Column(Geography('Point', srid=4326, from_text='ST_GeomFromGeoJSON'), nullable=False)
