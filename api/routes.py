@@ -16,6 +16,7 @@ from api.models import Route
 
 AVAILABLE_PROFILES = ('driving-car', 'foot-walking')
 POINT_PROXIMITY_THRESHOLD = 1000
+MAX_PREPARED_ROUTES = 5
 TRANSFORM = pyproj.Transformer.from_crs(4326, 3857, always_xy=True)
 
 
@@ -79,7 +80,7 @@ def directions():
             if transform(to_shape(route.start)).distance(start_3857) < POINT_PROXIMITY_THRESHOLD
             and transform(to_shape(route.finish)).distance(finish_3857) < POINT_PROXIMITY_THRESHOLD
         ]
-        for index, route in enumerate(similar_routes):
+        for index, route in enumerate(similar_routes[:MAX_PREPARED_ROUTES]):
             route_geom = transform(LineString(route['geometry']))
             # Get the closest points on the past route to counterparts requested by the user
             nearest_to_start, _ = nearest_points(route_geom, start_3857)
