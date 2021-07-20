@@ -1,8 +1,7 @@
-import json
 from uuid import uuid4
 
 import pyproj
-from shapely.geometry import Point, LineString, mapping
+from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
 from flask import request, jsonify, abort, Response
@@ -136,10 +135,9 @@ def directions():
                 id=route_id,
                 user_id=user_id,
                 profile=profile,
-                # change to accept WKT/WKB
-                route=json.dumps(mapping(LineString(route['geometry']))),
-                start=json.dumps(mapping(start)),
-                finish=json.dumps(mapping(finish)),
+                route=LineString(route['geometry']).wkt,
+                start=start.wkt,
+                finish=finish.wkt,
                 distance=route['distance'],
                 duration=route['duration']
             ))
@@ -163,8 +161,8 @@ def directions():
             id=route_id,
             user_id=user_id,
             profile=profile,
-            start=json.dumps(mapping(start)),
-            finish=json.dumps(mapping(finish))
+            start=start.wkt,
+            finish=finish.wkt
         ))
         routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     db.session.commit()
