@@ -128,7 +128,7 @@ def directions():
                 'duration': sum([part['duration'] for part in (route, tail, head)])
             })
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
-    if request.json.get('make_route', True):
+    if request.json.get('make_route', True) and profile == 'driving-car':
         # If it's driver's 1st routing request, suggest alternatives
         routes = ors.directions(positions, profile, is_drivers_initial)
         # Save routes to DB
@@ -146,12 +146,11 @@ def directions():
                 duration=route['duration']
             ))
         # Get midpoints of the route's last segment for the user to drag on the screen
-        if profile == 'driving-car':
-            routes_last_parts = routes if is_drivers_initial else ors.directions(positions[-2:], profile)
-            routes_last_parts = [route['geometry'] for route in routes_last_parts]
-            handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
-            handles = [Point(handle.coords[0]) for handle in handles]
-            handles = FeatureCollection([Feature(route_id, handle) for route_id, handle in zip(route_ids, handles)])
+        routes_last_parts = routes if is_drivers_initial else ors.directions(positions[-2:], profile)
+        routes_last_parts = [route['geometry'] for route in routes_last_parts]
+        handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
+        handles = [Point(handle.coords[0]) for handle in handles]
+        handles = FeatureCollection([Feature(route_id, handle) for route_id, handle in zip(route_ids, handles)])
         # Prepare the response
         routes, prepared_routes = [
             FeatureCollection([
