@@ -217,12 +217,12 @@ def delete_discarded_routes(route_id):
 def get_candidates():
     target_route = Route.query.get_or_404(request.args.get('route_id'))
     candidate_route_ids = request.args.get('candidate_route_ids').split(',')
-    if target_route.profile == 'driving-car':
-        candidate_routes = Route.query.filter(
-            Route.id.in_(candidate_route_ids),
-            func.ST_Distance(Route.start, target_route.route) < 10000,
-            func.ST_Distance(Route.finish, target_route.route) < 10000,
-        )
+    candidate_routes = Route.query.filter(
+        Route.id.in_(candidate_route_ids),
+        func.ST_Distance(Route.start, target_route.route) < 10000,
+        func.ST_Distance(Route.finish, target_route.route) < 10000,
+        func.ST_Distance(Route.finish, target_route.finish) < func.ST_Distance(Route.start, target_route.finish),
+    )
     if target_route.profile == 'foot-walking':
         candidate_routes = candidate_routes.filter(Route.trip_id != None)
     # Define attributes & weights for sorting: (candidate_route, target_route, weight)
