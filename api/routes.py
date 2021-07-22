@@ -102,13 +102,19 @@ def directions():
             common_part = substring(route_geom, *cut_point_distances)
             # Remove duplicate segments
             if tail['geometry']:
-                tail_snapped = LineString([snap(Point(v), nearest_points(common_part, Point(v))[0], 25) for v in tail_geom.coords])
+                tail_snapped = LineString([
+                    snap(Point(v), nearest_points(common_part, Point(v))[0], 25)
+                    for v in tail_geom.coords
+                ])
                 if tail_snapped.overlaps(common_part):
                     tail_geom, common_part = tail_snapped.symmetric_difference(common_part)
                 elif tail_snapped.within(common_part):
                     tail_geom = LineString()
             if head['geometry']:
-                head_snapped = LineString([snap(Point(v), nearest_points(common_part, Point(v))[0], 25) for v in head_geom.coords])
+                head_snapped = LineString([
+                    snap(Point(v), nearest_points(common_part, Point(v))[0], 25)
+                    for v in head_geom.coords
+                ])
                 if head_snapped.overlaps(common_part):
                     head_geom, common_part = head_snapped.symmetric_difference(common_part)
                 elif head_snapped.within(common_part):
@@ -124,7 +130,7 @@ def directions():
                     for attr in ('distance', 'duration')
                 }
             ))
-    # User may opt to drive ad-hoc instead of preparing a route; if make_route is False, only the endpoint will be saved
+    # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
     if request.json.get('make_route', True):
         # If it's driver's 1st routing request, suggest alternatives
         routes = ors.directions(positions, profile, is_drivers_initial)
@@ -176,8 +182,10 @@ def directions():
 @app.route('/routes/<uuid:route_id>', methods=['GET'])
 def get_route(route_id):
     route = Route.query.get_or_404(route_id)
-    is_full = route.route and not request.args.get('full', 'true').lower() == 'false'
-    route = to_shape(route.route) if is_full else LineString([to_shape(pt).coords[0] for pt in (route.start, route.finish)])
+    is_full = bool(route.route) and not request.args.get('full', 'true').lower() == 'false'
+    route = to_shape(route.route) if is_full else LineString([
+        to_shape(pt).coords[0] for pt in (route.start, route.finish)
+    ])
     return {
         'route': Feature(geometry=route),
         'full': is_full
@@ -206,12 +214,36 @@ def delete_discarded_routes(route_id):
 
 @app.route('/candidates', methods=['GET'])
 def get_candidates():
-    route_id = request.args.get('route_id')
+    target_route = Route.query.get_or_404(request.args.get('route_id'))
     candidate_route_ids = request.args.get('candidate_route_ids').split(',')
-    route = Route.query.get_or_404(route_id)
-    candidate_routes_sorted = Route.query.filter(Route.trip_id != None, Route.id.in_(candidate_route_ids)).order_by(func.ST_Distance(Route.start, route.start))
-    candidate_ids = [route.id for route in candidate_routes_sorted]
-    return jsonify(candidate_ids)
+    if target_route.profile == 'driving-car':
+        candidate_routes = Route.query.filter(
+            Route.id.in_(candidate_route_ids),
+            func.ST_Distance(Route.start, target_route.route) < 10000,
+            func.ST_Distance(Route.finish, target_route.route) < 10000,
+        )
+    if target_route.profile == 'foot-walking':
+        candidate_routes = candidate_routes.filter(Route.trip_id != None)
+    # Define attributes & weights for sorting: (candidate_route, target_route, weight)
+    sortings = {
+        'driving-car': (
+            ('start', 'start', .35),
+            ('finish', 'finish', .35),
+            ('start', 'route', .15),
+            ('finish', 'route', .15)
+        ),
+        'foot-walking': (
+            ('start', 'start', .35),
+            ('finish', 'finish', .35),
+            ('route', 'start', .15),
+            ('route', 'finish', .15)
+        )
+    }
+    candidate_routes.order_by(sum([
+        func.ST_Distance(getattr(Route, candidate_attr), getattr(target_route, target_attr)) * weight
+        for candidate_attr, target_attr, weight in sortings[target_route.profile]
+    ]))
+    return jsonify([route.id for route in candidate_routes])
 
 
 @app.route('/geocode', methods=['GET'])
