@@ -79,7 +79,7 @@ def directions():
             if transform(to_shape(route.start)).distance(start_3857) < POINT_PROXIMITY_THRESHOLD
             and transform(to_shape(route.finish)).distance(finish_3857) < POINT_PROXIMITY_THRESHOLD
         ]
-        for index, route in enumerate(similar_routes[:MAX_PREPARED_ROUTES]):
+        for route in similar_routes[:MAX_PREPARED_ROUTES]:
             route_geom = transform(LineString(route['geometry']))
             # Get the closest points on the past route to counterparts requested by the user
             nearest_to_start, _ = nearest_points(route_geom, start_3857)
@@ -103,8 +103,8 @@ def directions():
             # Remove duplicate segments
             if tail['geometry']:
                 tail_snapped = LineString([
-                    snap(Point(v), nearest_points(common_part, Point(v))[0], 25)
-                    for v in tail_geom.coords
+                    snap(Point(coords), nearest_points(common_part, Point(coords))[0], 25)
+                    for coords in tail_geom.coords
                 ])
                 if tail_snapped.overlaps(common_part):
                     tail_geom, common_part = tail_snapped.symmetric_difference(common_part)
@@ -112,8 +112,8 @@ def directions():
                     tail_geom = LineString()
             if head['geometry']:
                 head_snapped = LineString([
-                    snap(Point(v), nearest_points(common_part, Point(v))[0], 25)
-                    for v in head_geom.coords
+                    snap(Point(coords), nearest_points(common_part, Point(coords))[0], 25)
+                    for coords in head_geom.coords
                 ])
                 if head_snapped.overlaps(common_part):
                     head_geom, common_part = head_snapped.symmetric_difference(common_part)
@@ -122,21 +122,19 @@ def directions():
             # Stitch them together
             parts_to_merge = list(filter(bool, (tail_geom, common_part, head_geom)))
             full_route = linemerge(unary_union(parts_to_merge)) if len(parts_to_merge) > 1 else common_part
-            prepared_routes.append(Feature(
-                id=index,
-                geometry=transform(full_route, to_wgs84=True),
-                properties={
-                    attr: sum([part[attr] for part in (route, tail, head)])  # sum distance & duration of the parts
-                    for attr in ('distance', 'duration')
-                }
-            ))
+            prepared_routes.append({
+                'geometry': transform(full_route, to_wgs84=True).coords,
+                'distance': sum([part['distance'] for part in (route, tail, head)]),
+                'duration': sum([part['duration'] for part in (route, tail, head)])
+            })
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
     if request.json.get('make_route', True):
         # If it's driver's 1st routing request, suggest alternatives
         routes = ors.directions(positions, profile, is_drivers_initial)
         # Save routes to DB
-        route_ids = [uuid4() for _ in routes]
-        for route, route_id in zip(routes, route_ids):
+        all_routes = routes + prepared_routes
+        route_ids = [uuid4() for _ in all_routes]
+        for route, route_id in zip(all_routes, route_ids):
             db.session.add(Route(
                 id=route_id,
                 user_id=user_id,
@@ -155,12 +153,15 @@ def directions():
             handles = [Point(handle.coords[0]) for handle in handles]
             handles = FeatureCollection([Feature(route_id, handle) for route_id, handle in zip(route_ids, handles)])
         # Prepare the response
-        routes = FeatureCollection([
-            Feature(
-                id=route_id,
-                geometry=LineString(route['geometry']),
-                properties={attr: route[attr] for attr in ('distance', 'duration')}
-            ) for route_id, route in zip(route_ids, routes)])
+        routes, prepared_routes = [
+            FeatureCollection([
+                Feature(
+                    id=route_id,
+                    geometry=LineString(route['geometry']),
+                    properties={attr: route[attr] for attr in ('distance', 'duration')}
+                ) for route_id, route in zip(route_ids, route_set)
+            ]) for route_set in (routes, prepared_routes)
+        ]
     else:
         route_id = uuid4()
         db.session.add(Route(
@@ -175,7 +176,7 @@ def directions():
     return jsonify({
         'routes': routes,
         'handles': handles,
-        'prepared_routes': FeatureCollection(prepared_routes),
+        'prepared_routes': prepared_routes,
     })
 
 
