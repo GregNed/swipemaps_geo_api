@@ -4,7 +4,7 @@ import pyproj
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
-from flask import json, request, jsonify, abort, Response
+from flask import request, jsonify, abort, Response
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from geoalchemy2.shape import to_shape
@@ -16,7 +16,7 @@ from api.models import Route
 AVAILABLE_PROFILES = ('driving-car', 'foot-walking')
 POINT_PROXIMITY_THRESHOLD = 1000
 MAX_PREPARED_ROUTES = 5
-TRANSFORM = pyproj.Transformer.from_crs(4326, 3857, always_xy=True)
+TRANSFORM = pyproj.Transformer.from_crs(4326, 32637, always_xy=True)
 
 
 def transform(shape, to_wgs84=False):
@@ -45,13 +45,17 @@ def pickup():
     passenger_route = ors.directions(
         [pt.coords[0] for pt in (passenger_start_wgs84, transform(nearest_point, to_wgs84=True))],
         'foot-walking'
-    )
+    )[0]
     try:
         # If straight-line nearest point was unreachable by walking, resulting route may contain a new 'nearest' point
-        nearest_point = passenger_route[0]['geometry'][-1]
+        nearest_point = passenger_route['geometry'][-1]
         # Calculate the straight-line distance for the front to use as the circle radius
-        distance = passenger_start_3857.distance(transform(Point(nearest_point)))
-        return jsonify({'point': nearest_point, 'distance': round(distance, 2)})
+        radius = passenger_start_3857.distance(transform(Point(nearest_point)))
+        return jsonify({
+            'point': nearest_point,
+            'radius': round(radius, 2),
+            'distance': passenger_route['distance']
+        })
     except IndexError:
         return jsonify({})
 
