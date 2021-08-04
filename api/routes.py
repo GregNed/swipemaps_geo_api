@@ -74,8 +74,12 @@ def directions():
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json.get('positions')]
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
-    start = Point(positions[0])
-    finish = Point(positions[-1])
+    start, finish = (Point(positions[i]) for i in (0, -1))
+    # Reproject them to be used with Shapely (leave the spherical versions to save to the DB later)
+    start_projected, finish_projected = (transform(point) for point in (start, finish))
+    # Order intermediate positions along the route
+    if len(positions) > 2:
+        positions.sort(key=lambda x: start_projected.distance(transform(Point(x))))
     # Routing using existing routes
     from_route_id = request.json.get('from_route_id')  # UUID
     to_route_id = request.json.get('to_route_id')  # UUID
@@ -95,22 +99,20 @@ def directions():
     is_drivers_initial = profile == 'driving-car' and len(positions) == 2
     # Check if there are similar routes in the user's history; if there are any, return them along w/ the new ones
     if is_drivers_initial:
-        # Reproject start & finish to Web Mercator to use them with Shapely
-        start_3857, finish_3857 = [transform(Point(positions[i])) for i in (0, -1)]
         # Get all the routes from the user's history
         past_routes = Route.query.filter(Route.trip_id != None, Route.user_id == user_id).all()
         # Filter out those whose start & finish were close enough to the currently requested ones
         similar_routes = [
             {'geometry': to_shape(route.route), 'distance': route.distance, 'duration': route.duration}
             for route in past_routes
-            if transform(to_shape(route.start)).distance(start_3857) < POINT_PROXIMITY_THRESHOLD
-            and transform(to_shape(route.finish)).distance(finish_3857) < POINT_PROXIMITY_THRESHOLD
+            if transform(to_shape(route.start)).distance(start_projected) < POINT_PROXIMITY_THRESHOLD
+            and transform(to_shape(route.finish)).distance(finish_projected) < POINT_PROXIMITY_THRESHOLD
         ]
         for route in similar_routes[:MAX_PREPARED_ROUTES]:
             route_geom = transform(LineString(route['geometry']))
             # Get the closest points on the past route to counterparts requested by the user
-            nearest_to_start, _ = nearest_points(route_geom, start_3857)
-            nearest_to_finish, _ = nearest_points(route_geom, finish_3857)
+            nearest_to_start, _ = nearest_points(route_geom, start_projected)
+            nearest_to_finish, _ = nearest_points(route_geom, finish_projected)
             # Reproject them back to WGS84 for the ORS
             nearest_to_start_4326 = transform(nearest_to_start, to_wgs84=True).coords[0]
             nearest_to_finish_4326 = transform(nearest_to_finish, to_wgs84=True).coords[0]
