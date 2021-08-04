@@ -1,19 +1,15 @@
-from typing import Optional
-
 import requests
 import openrouteservice as ors
 
 
 API_KEY = '5b3ce3597851110001cf6248ec409dc3a99a42bc8a80b2f87c0da955'
 ORS_ENDPOINT = 'http://ors:8080/ors'
-# ORS_ENDPOINT = 'http://ors-test:8080/ors'
-# PELIAS_ENDPOINT = 'http://localhost:4000/v1'
 PELIAS_ENDPOINT = 'https://api.openrouteservice.org/geocode'
 MOSCOW_CENTER = [55.754801, 37.622311]
 MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
 
 
-def directions(positions: list[float], profile: str, alternatives: bool = False) -> list[Optional[dict]]:
+def directions(positions: list[float], profile: str, alternatives: bool = False) -> list[dict]:
     """"""
     client = ors.Client(base_url=ORS_ENDPOINT)
     args = {
