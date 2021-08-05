@@ -38,10 +38,10 @@ def pickup():
     # Process the arguments
     driver_route = to_shape(Route.query.get_or_404(request.args.get('route_id')).route)
     passenger_start_wgs84 = Point(map(float, request.args.get('from').split(',')[::-1]))
-    passenger_start_3857 = transform(passenger_start_wgs84)
+    passenger_start_projected = transform(passenger_start_wgs84)
     # Identify the closest point on the driver's route
-    nearest_point = nearest_points(transform(driver_route), passenger_start_3857)[0]
-    # Obtain the actual (graph-based route) so that a
+    nearest_point = nearest_points(transform(driver_route), passenger_start_projected)[0]
+    # Obtain the actual (graph-based route) so that the pickup point always be accessible
     passenger_route = ors.directions(
         [pt.coords[0] for pt in (passenger_start_wgs84, transform(nearest_point, to_wgs84=True))],
         'foot-walking'
@@ -49,8 +49,10 @@ def pickup():
     try:
         # If straight-line nearest point was unreachable by walking, resulting route may contain a new 'nearest' point
         nearest_point = passenger_route['geometry'][-1]
+        if driver_route.project(Point(nearest_point)) < 500:
+            return ''
         # Calculate the straight-line distance for the front to use as the circle radius
-        radius = passenger_start_3857.distance(transform(Point(nearest_point)))
+        radius = passenger_start_projected.distance(transform(Point(nearest_point)))
         return jsonify({
             'point': nearest_point,
             'radius': round(radius, 2),
