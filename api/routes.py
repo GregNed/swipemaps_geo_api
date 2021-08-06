@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pyproj
 from shapely.geometry import Point, LineString
-from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
+from shapely.ops import nearest_points, substring, snap, split, linemerge, unary_union
 from geojson import Feature, FeatureCollection
 from flask import request, jsonify, abort, Response
 from sqlalchemy import func
@@ -31,6 +31,16 @@ def transform(shape, to_wgs84=False):
 @app.route('/', methods=['GET'])
 def healthcheck():
     return jsonify({'status': 'OK'})
+
+
+@app.route('/routes/<uuid:route_id>/remainder', methods=['GET'])
+def currentPositionIndex(route_id):
+    driver_route = to_shape(Route.query.get_or_404(route_id).route)
+    current_position = Point(map(float, request.args.get('current_position').split(',')[::-1]))
+    current_position_snapped = nearest_points(driver_route, current_position)[0]
+    route_passed_fraction = driver_route.project(current_position_snapped, normalized=True)
+    remaining_route = substring(driver_route, route_passed_fraction, 1, normalized=True)
+    return jsonify(list(remaining_route.coords))
 
 
 @app.route('/pickup', methods=['GET'])
