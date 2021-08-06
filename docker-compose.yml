@@ -21,6 +21,8 @@ services:
   pg:
     image: registry.gitlab.com/dangoclub/postgis
     restart: always
+    ports:
+      - "5432:5432"
   autoheal:
     image: willfarrell/autoheal
     environment:
