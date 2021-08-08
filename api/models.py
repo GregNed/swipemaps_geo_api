@@ -17,7 +17,7 @@ class Route(db.Model):
     duration = db.Column(db.Float)
 
     def __repr__(self):
-        return f'<User {self.user_id} route>'
+        return f'<Route {self.user_id}>'
 
 
 class PickupPoint(db.Model):
