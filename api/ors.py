@@ -1,10 +1,13 @@
+import os
 import requests
 import openrouteservice as ors
 
 
-API_KEY = '5b3ce3597851110001cf6248ec409dc3a99a42bc8a80b2f87c0da955'
-ORS_ENDPOINT = 'http://ors:8080/ors'
-PELIAS_ENDPOINT = 'https://api.openrouteservice.org/geocode'
+# Connection constants
+API_KEY = os.getenv('ORS_API_KEY')
+ORS_ENDPOINT = os.getenv('ORS_ENDPOINT')
+PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
+# The app is scoped to Moscow and the Moscow Region for now, so tune the service to focus on that area
 MOSCOW_CENTER = [55.754801, 37.622311]
 MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
 
