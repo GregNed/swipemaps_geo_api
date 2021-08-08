@@ -24,7 +24,7 @@ class PickupPoint(db.Model):
     """"""
     id = db.Column(UUID(as_uuid=True), primary_key=True)
     user_id = db.Column(UUID(as_uuid=True), nullable=False)
-    trip_id = db.Column(UUID(as_uuid=True), unique=True)
+    trip_id = db.Column(UUID(as_uuid=True), nullable=False)
     geom = db.Column(Geography('Point', srid=4326), nullable=False)
 
     def __repr__(self):
