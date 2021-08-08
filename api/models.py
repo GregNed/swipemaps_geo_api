@@ -18,3 +18,14 @@ class Route(db.Model):
 
     def __repr__(self):
         return f'<User {self.user_id} route>'
+
+
+class PickupPoint(db.Model):
+    """"""
+    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    trip_id = db.Column(UUID(as_uuid=True), unique=True)
+    geom = db.Column(Geography('Point', srid=4326), nullable=False)
+
+    def __repr__(self):
+        return f'<Pickup point {self.id}>'
