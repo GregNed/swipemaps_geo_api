@@ -2,16 +2,19 @@ from uuid import uuid4
 
 import pyproj
 from shapely.geometry import Point, LineString
-from shapely.ops import nearest_points, substring, snap, split, linemerge, unary_union
+from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
-from flask import request, jsonify, abort, Response
+from flask import request, jsonify
+from flask_restful import Resource, Api
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from geoalchemy2.shape import to_shape
 
 from api import app, db, ors
-from api.models import Route
+from api.models import Route, PickupPoint
 
+
+api = Api(app)
 
 AVAILABLE_PROFILES = ('driving-car', 'foot-walking')
 POINT_PROXIMITY_THRESHOLD = 1000
@@ -33,8 +36,36 @@ def healthcheck():
     return jsonify({'status': 'OK'})
 
 
+class PickupPointResource(Resource):
+    """"""
+
+    def get(self, id_):
+        point = PickupPoint.query.get_or_404(id_)
+        return jsonify(to_shape(point.geom).coords[0])
+
+    def post(self):
+        try:
+            coords = request.json['coordinates'][::-1]
+            user_id = request.json['user_id']
+            trip_id = request.json['trip_id']
+        except KeyError:
+            return 'Please provide: coordinates, user_id, trip_id', 400
+        id_ = uuid4()
+        db.session.add(PickupPoint(
+            id=id_,
+            geom=Point(coords).wkt,
+            user_id=user_id,
+            trip_id=trip_id
+        ))
+        db.session.commit()
+        return jsonify(id_)
+
+
+api.add_resource(PickupPointResource, '/pickup', '/pickup/<uuid:id_>')
+
+
 @app.route('/routes/<uuid:route_id>/remainder', methods=['GET'])
-def currentPositionIndex(route_id):
+def remainder(route_id):
     driver_route = to_shape(Route.query.get_or_404(route_id).route)
     current_position = Point(map(float, request.args.get('current_position').split(',')[::-1]))
     current_position_snapped = nearest_points(driver_route, current_position)[0]
@@ -82,7 +113,7 @@ def directions():
     # Profile, as it's called in the ORS, is the type of a vehicle, or a pedestrian, to route for
     profile = request.json.get('profile')
     if profile not in AVAILABLE_PROFILES:
-        abort(Response(f'Profile must be one of {AVAILABLE_PROFILES}', 400))
+        return f'Profile must be one of {AVAILABLE_PROFILES}', 400
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json.get('positions')]
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
@@ -241,15 +272,15 @@ def delete_discarded_routes(route_id):
     try:
         count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
         if count == 0:
-            abort(Response('User and route combination not found', 404))
+            return 'User and route combination not found', 404
         Route.query.get_or_404(route_id).trip_id = trip_id
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return Response('Such trip id already exists in the database', 400)
+        return 'Such trip id already exists in the database', 400
     except Exception as e:
         db.session.rollback()
-        return Response(e, 400)
+        return e, 400
     else:
         return ''
 
@@ -292,16 +323,16 @@ def get_candidates():
 def geocode():
     text = request.args.get('text')
     result = ors.geocode(text)
-    return jsonify(result) or abort(404)
+    return jsonify(result) or '', 404
 
 
 @app.route('/reverse', methods=['GET'])
 def reverse_geocode():
     try:
         position = [float(coord) for coord in request.args.get('position', '').split(',')][0: 2]
-        return ors.reverse_geocode(position) or abort(404)
+        return ors.reverse_geocode(position) or '', 404
     except ValueError:
-        abort(400)
+        return '', 400
 
 
 @app.route('/suggest', methods=['GET'])
@@ -313,4 +344,4 @@ def suggest():
             geometry=feature['geometry'],
             properties=feature['properties']
         ) for feature in result]
-    )) if result else abort(404)
+    )) if result else '', 404
