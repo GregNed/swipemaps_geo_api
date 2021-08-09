@@ -1,28 +1,28 @@
 stages:
-  - test
+  # - test
   - build
 
-test:
-  stage: test
-  image: python:3.9-slim
-  services:
-    - name: openrouteservice/openrouteservice:v6.4.3
-      alias: ors
-    - name: registry.gitlab.com/dangoclub/postgis
-      alias: pg
-  only:
-    changes:
-      - .gitlab-ci.yml
-      - app.py
-      - api/*.py
-      - tests/*.py
-      - migrations/alembic.ini
-      - migrations/**/*.py
-  script:
-    - pip install -r requirements.txt
-    - flask db upgrade
-    - pip install pytest==6.2.4
-    - pytest -v
+# test:
+#   stage: test
+#   image: python:3.9-slim
+#   services:
+#     - name: openrouteservice/openrouteservice:v6.4.3
+#       alias: ors
+#     - name: registry.gitlab.com/dangoclub/postgis
+#       alias: pg
+#   only:
+#     changes:
+#       - .gitlab-ci.yml
+#       - app.py
+#       - api/*.py
+#       - tests/*.py
+#       - migrations/alembic.ini
+#       - migrations/**/*.py
+#   script:
+#     - pip install -r requirements.txt
+#     - flask db upgrade
+#     - pip install pytest==6.2.4
+#     - pytest -v
 
 build:
   stage: build
