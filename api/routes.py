@@ -91,8 +91,7 @@ def pickup():
         # If straight-line nearest point was unreachable by walking, resulting route may contain a new 'nearest' point
         nearest_point = passenger_route['geometry'][-1]
         if driver_route.project(transform(Point(nearest_point))) < 500:
-            # return ''
-            return jsonify(driver_route.project(Point(nearest_point)))
+            return ''
         # Calculate the straight-line distance for the front to use as the circle radius
         radius = passenger_start_projected.distance(transform(Point(nearest_point)))
         return jsonify({
