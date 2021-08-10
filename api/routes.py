@@ -285,10 +285,13 @@ def delete_discarded_routes(route_id):
         return ''
 
 
-@app.route('/candidates', methods=['GET'])
-def get_candidates():
-    target_route = Route.query.get_or_404(request.args.get('route_id'))
-    candidate_route_ids = request.args.get('candidate_route_ids').split(',')
+@app.route('/routes/<uuid:id_>/candidates', methods=['POST'])
+def get_candidates(id_):
+    target_route = Route.query.get_or_404(id_)
+    try:
+        candidate_route_ids = request.json['candidate_route_ids']
+    except KeyError:
+        return '"candidate_route_ids" missing from the request body', 400
     candidate_routes = Route.query.filter(
         Route.id.in_(candidate_route_ids),
         func.ST_Distance(Route.start, target_route.route) < 10000,
