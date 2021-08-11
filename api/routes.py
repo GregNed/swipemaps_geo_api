@@ -20,6 +20,7 @@ AVAILABLE_PROFILES = ('driving-car', 'foot-walking')
 POINT_PROXIMITY_THRESHOLD = 1000
 MAX_PREPARED_ROUTES = 5
 TRANSFORM = pyproj.Transformer.from_crs(4326, 32637, always_xy=True)
+ROUTE_NOT_FOUND_MESSAGE = 'No such route in the database :-('
 
 
 def transform(shape, to_wgs84=False):
@@ -40,7 +41,7 @@ class PickupPointResource(Resource):
     """"""
 
     def get(self, id_):
-        point = PickupPoint.query.get_or_404(id_)
+        point = PickupPoint.query.get_or_404(id_, 'No such pick-up point in the database :-(')
         return jsonify(to_shape(point.geom).coords[0])
 
     def post(self):
@@ -66,7 +67,7 @@ api.add_resource(PickupPointResource, '/pickup', '/pickup/<uuid:id_>')
 
 @app.route('/routes/<uuid:route_id>/remainder', methods=['GET'])
 def remainder(route_id):
-    driver_route = to_shape(Route.query.get_or_404(route_id).route)
+    driver_route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route)
     current_position = Point(map(float, request.args.get('current_position').split(',')[::-1]))
     current_position_snapped = nearest_points(driver_route, current_position)[0]
     route_passed_fraction = driver_route.project(current_position_snapped, normalized=True)
@@ -77,7 +78,8 @@ def remainder(route_id):
 @app.route('/suggest_pickup', methods=['GET'])
 def pickup():
     # Process the arguments
-    driver_route = transform(to_shape(Route.query.get_or_404(request.args.get('route_id')).route))
+    driver_route = Route.query.get_or_404(request.args.get('route_id'), ROUTE_NOT_FOUND_MESSAGE)
+    driver_route = transform(to_shape(driver_route.route))
     passenger_start_wgs84 = Point(map(float, request.args.get('from').split(',')[::-1]))
     passenger_start_projected = transform(passenger_start_wgs84)
     # Identify the closest point on the driver's route
@@ -126,8 +128,8 @@ def directions():
     # Routing using existing routes
     from_route_id = request.json.get('from_route_id')  # UUID
     to_route_id = request.json.get('to_route_id')  # UUID
-    from_route = to_shape(Route.query.get_or_404(from_route_id).route) if from_route_id else None
-    to_route = to_shape(Route.query.get_or_404(to_route_id).route) if to_route_id else None
+    from_route = to_shape(Route.query.get_or_404(from_route_id, ROUTE_NOT_FOUND_MESSAGE).route) if from_route_id else None
+    to_route = to_shape(Route.query.get_or_404(to_route_id, ROUTE_NOT_FOUND_MESSAGE).route) if to_route_id else None
     if from_route and to_route:
         from_point, to_point = [point.coords[0] for point in nearest_points(from_route, to_route)]
         positions = [from_point, *positions, to_point]
@@ -254,7 +256,7 @@ def directions():
 
 @app.route('/routes/<uuid:route_id>', methods=['GET'])
 def get_route(route_id):
-    route = Route.query.get_or_404(route_id)
+    route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
     is_full = bool(route.route) and not request.args.get('full', 'true').lower() == 'false'
     route = to_shape(route.route) if is_full else LineString([
         to_shape(pt).coords[0] for pt in (route.start, route.finish)
@@ -273,7 +275,7 @@ def delete_discarded_routes(route_id):
         count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
         if count == 0:
             return 'User and route combination not found', 404
-        Route.query.get_or_404(route_id).trip_id = trip_id
+        Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).trip_id = trip_id
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -287,7 +289,7 @@ def delete_discarded_routes(route_id):
 
 @app.route('/routes/<uuid:id_>/candidates', methods=['POST'])
 def get_candidates(id_):
-    target_route = Route.query.get_or_404(id_)
+    target_route = Route.query.get_or_404(id_, ROUTE_NOT_FOUND_MESSAGE)
     try:
         candidate_route_ids = request.json['candidate_route_ids']
     except KeyError:
