@@ -1,7 +1,8 @@
 from uuid import uuid4
 
 import pyproj
-from shapely.geometry import Point, LineString
+import numpy as np
+from shapely.geometry import Point, LineString, MultiPoint
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
 from flask import request, jsonify
@@ -35,6 +36,23 @@ def transform(shape, to_wgs84=False):
 @app.route('/', methods=['GET'])
 def healthcheck():
     return jsonify({'status': 'OK'})
+
+
+@app.route('/routes/<uuid:id_>/immitate', methods=['POST'])
+def immitate(id_):
+    route = transform(to_shape(Route.query.get_or_404(id_).route))
+    route_coords = np.array(route.coords)
+    route_coords_delta = np.random.uniform(-20.0, 20.0, (len(route_coords), 2))
+    route_coords += route_coords_delta
+    try:
+        points = [transform(Point(position[::-1])) for position in request.json['points']]
+    except (TypeError, KeyError):
+        return '"points" attribute must be present in the request body. If there are none, just set it to [].', 400
+    route_vertices = MultiPoint(route_coords)
+    points_snapped = [nearest_points(route_vertices, point)[0].coords[0] for point in points]
+    for new, old in zip(points, points_snapped):
+        route_coords = np.where(route_coords == old, new, route_coords)
+    return jsonify(Feature(geometry=transform(LineString(route_coords), to_wgs84=True)))
 
 
 class PickupPointResource(Resource):
