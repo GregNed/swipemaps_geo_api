@@ -75,12 +75,14 @@ def remainder(route_id):
     return jsonify(list(remaining_route.coords))
 
 
-@app.route('/suggest_pickup', methods=['GET'])
-def pickup():
+@app.route('/routes/<uuid:id_>/suggest_pickup', methods=['GET'])
+def pickup(id_):
     # Process the arguments
-    driver_route = Route.query.get_or_404(request.args.get('route_id'), ROUTE_NOT_FOUND_MESSAGE)
-    driver_route = transform(to_shape(driver_route.route))
-    passenger_start_wgs84 = Point(map(float, request.args.get('from').split(',')[::-1]))
+    driver_route = transform(to_shape(Route.query.get_or_404(id_, ROUTE_NOT_FOUND_MESSAGE).route))
+    try:
+        passenger_start_wgs84 = Point(map(float, request.args['from'].split(',')[::-1]))
+    except KeyError:
+        return 'Please, specify a "from" location as a string <lat,lon>', 400
     passenger_start_projected = transform(passenger_start_wgs84)
     # Identify the closest point on the driver's route
     nearest_point = nearest_points(driver_route, passenger_start_projected)[0]
