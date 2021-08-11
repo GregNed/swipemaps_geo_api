@@ -40,7 +40,7 @@ def healthcheck():
 
 @app.route('/routes/<uuid:id_>/immitate', methods=['POST'])
 def immitate(id_):
-    route = transform(to_shape(Route.query.get_or_404(id_).route))
+    route = transform(to_shape(Route.query.get_or_404(id_, ROUTE_NOT_FOUND_MESSAGE).route))
     route_coords = np.array(route.coords)
     route_coords_delta = np.random.uniform(-20.0, 20.0, (len(route_coords), 2))
     route_coords += route_coords_delta
