@@ -65,7 +65,6 @@ class PickupPointResource(Resource):
     def post(self):
         try:
             coords = request.json['coordinates'][::-1]
-            user_id = request.json['user_id']
             trip_id = request.json['trip_id']
         except KeyError:
             return 'Please provide: coordinates, user_id, trip_id', 400
@@ -73,7 +72,6 @@ class PickupPointResource(Resource):
         db.session.add(PickupPoint(
             id=id_,
             geom=Point(coords).wkt,
-            user_id=user_id,
             trip_id=trip_id
         ))
         db.session.commit()

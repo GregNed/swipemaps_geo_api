@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy.dialects.postgresql import UUID
 from geoalchemy2 import Geography
 
@@ -23,8 +25,8 @@ class Route(db.Model):
 class PickupPoint(db.Model):
     """"""
     id = db.Column(UUID(as_uuid=True), primary_key=True)
-    user_id = db.Column(UUID(as_uuid=True), nullable=False)
     trip_id = db.Column(UUID(as_uuid=True), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     geom = db.Column(Geography('Point', srid=4326), nullable=False)
 
     def __repr__(self):
