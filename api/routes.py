@@ -40,7 +40,7 @@ def healthcheck():
 
 @app.route('/routes/<uuid:id_>/is_at_pickup_point')
 def is_at_pickup_point(id_):
-    pickup_point = PickupPoint.query.filter(PickupPoint.route_id == id_).first_or_404()
+    pickup_point = PickupPoint.query.filter(PickupPoint.route_id == id_).first_or_404('No such route & pickup point combo')
     driver_position = transform(Point(map(float, request.args['coordinates'].split(','))))
     return jsonify({
         'is_nearby': driver_position.distance(transform(to_shape(pickup_point.geom))) < 150
