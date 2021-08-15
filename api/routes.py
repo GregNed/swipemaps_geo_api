@@ -65,14 +65,17 @@ class PickupPointResource(Resource):
     def post(self):
         try:
             coords = request.json['coordinates'][::-1]
-            trip_id = request.json['trip_id']
+            route_id = request.json['route_id']
         except KeyError:
-            return 'Please provide: coordinates, user_id, trip_id', 400
+            return 'Please provide: coordinates, route_id', 400
+        route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+        if route.profile == 'driving-car':
+            return "This is a driver's route. Only passenger routes can have a pick-up point", 400
         id_ = uuid4()
         db.session.add(PickupPoint(
             id=id_,
             geom=Point(coords).wkt,
-            trip_id=trip_id
+            route_id=route_id
         ))
         db.session.commit()
         return jsonify(id_)
