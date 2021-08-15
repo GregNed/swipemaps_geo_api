@@ -38,6 +38,15 @@ def healthcheck():
     return jsonify({'status': 'OK'})
 
 
+@app.route('/routes/<uuid:id_>/is_at_pickup_point')
+def is_at_pickup_point(id_):
+    pickup_point = PickupPoint.query.filter(PickupPoint.route_id == id_).first_or_404()
+    driver_position = transform(Point(map(float, request.args['coordinates'].split(','))))
+    return jsonify({
+        'is_nearby': driver_position.distance(transform(to_shape(pickup_point.geom))) < 150
+    })
+
+
 @app.route('/routes/<uuid:id_>/immitate', methods=['POST'])
 def immitate(id_):
     route = transform(to_shape(Route.query.get_or_404(id_, ROUTE_NOT_FOUND_MESSAGE).route))
