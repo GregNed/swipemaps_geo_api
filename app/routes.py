@@ -1,23 +1,19 @@
 from uuid import uuid4
 
-import pyproj
 import numpy as np
+import pyproj
+import sqlalchemy
 from shapely.geometry import Point, LineString, MultiPoint
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
-from flask import request, jsonify
-from flask_restful import Resource, Api
-from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from flask import request
 from geoalchemy2.shape import to_shape
 
-from api import app, db, ors
-from api.models import Route, PickupPoint
+from app import app, db, ors
+from app.models import Route, PickupPoint
 
 
-api = Api(app)
-
-AVAILABLE_PROFILES = ('driving-car', 'foot-walking')
+st_distance = sqlalchemy.func.ST_Distance
 POINT_PROXIMITY_THRESHOLD = 1000
 MAX_PREPARED_ROUTES = 5
 TRANSFORM = pyproj.Transformer.from_crs(4326, 32637, always_xy=True)
@@ -33,84 +29,62 @@ def transform(shape, to_wgs84=False):
     return geometry_type(zip(xx.tolist(), yy.tolist()))
 
 
-@app.route('/', methods=['GET'])
 def healthcheck():
-    return jsonify({'status': 'OK'})
+    return {'status': 'OK'}
 
 
-@app.route('/routes/<uuid:id_>/is_at_pickup_point')
-def is_at_pickup_point(id_):
-    pickup_point = PickupPoint.query.filter(PickupPoint.route_id == id_).first_or_404('No such route & pickup point combo')
+def get_pickup_point(point_id):
+    point = PickupPoint.query.get_or_404(point_id, 'No such pick-up point in the database :-(')
+    return list(to_shape(point.geom).coords[0])
+
+
+def post_pickup_point():
+    geom = Point(request.json['coordinates'][::-1]).wkt
+    route_id = request.json['route_id']
+    route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+    if route.profile == 'driving-car':
+        return 'Only passenger routes can have pick-up points', 400
+    point = PickupPoint.query.filter(PickupPoint.route_id == route_id).first()
+    if point:
+        point.geom = geom
+    else:
+        point = PickupPoint(id=uuid4(), geom=geom, route_id=route_id)
+        db.session.add(point)
+    db.session.commit()
+    return point.id
+
+
+def is_at_pickup_point(route_id):
+    point = PickupPoint.query.filter(PickupPoint.route_id == route_id).first_or_404(f'Route {route_id} has no pick-up point')
     driver_position = transform(Point(map(float, request.args['coordinates'].split(','))))
-    return jsonify({
-        'is_nearby': driver_position.distance(transform(to_shape(pickup_point.geom))) < 150
-    })
+    return driver_position.distance(transform(to_shape(point.geom))) < app.config['PICKUP_POINT_PROXIMITY_THRESHOLD']
 
 
-@app.route('/routes/<uuid:id_>/immitate', methods=['POST'])
-def immitate(id_):
-    route = transform(to_shape(Route.query.get_or_404(id_, ROUTE_NOT_FOUND_MESSAGE).route))
+def immitate(route_id):
+    route = transform(to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route))
     route_coords = np.array(route.coords)
     route_coords_delta = np.random.uniform(-20.0, 20.0, (len(route_coords), 2))
     route_coords += route_coords_delta
-    try:
-        points = [transform(Point(position[::-1])) for position in request.json['points']]
-    except (TypeError, KeyError):
-        return '"points" attribute must be present in the request body. If there are none, just set it to [].', 400
+    points = [transform(Point(position[::-1])) for position in request.json['points']]
     route_vertices = MultiPoint(route_coords)
     points_snapped = [nearest_points(route_vertices, point)[0].coords[0] for point in points]
     for new, old in zip(points, points_snapped):
         route_coords = np.where(route_coords == old, new, route_coords)
-    return jsonify(Feature(geometry=transform(LineString(route_coords), to_wgs84=True)))
+    return Feature(geometry=transform(LineString(route_coords), to_wgs84=True))
 
 
-class PickupPointResource(Resource):
-    """"""
-
-    def get(self, id_):
-        point = PickupPoint.query.get_or_404(id_, 'No such pick-up point in the database :-(')
-        return jsonify(to_shape(point.geom).coords[0])
-
-    def post(self):
-        try:
-            coords = request.json['coordinates'][::-1]
-            route_id = request.json['route_id']
-        except KeyError:
-            return 'Please provide: coordinates, route_id', 400
-        route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-        if route.profile == 'driving-car':
-            return "This is a driver's route. Only passenger routes can have a pick-up point", 400
-        id_ = uuid4()
-        db.session.add(PickupPoint(
-            id=id_,
-            geom=Point(coords).wkt,
-            route_id=route_id
-        ))
-        db.session.commit()
-        return jsonify(id_)
-
-
-api.add_resource(PickupPointResource, '/pickup', '/pickup/<uuid:id_>')
-
-
-@app.route('/routes/<uuid:route_id>/remainder', methods=['GET'])
 def remainder(route_id):
     driver_route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route)
-    current_position = Point(map(float, request.args.get('current_position').split(',')[::-1]))
+    current_position = Point(map(float, request.args.get('position').split(',')[::-1]))
     current_position_snapped = nearest_points(driver_route, current_position)[0]
     route_passed_fraction = driver_route.project(current_position_snapped, normalized=True)
     remaining_route = substring(driver_route, route_passed_fraction, 1, normalized=True)
-    return jsonify(list(remaining_route.coords))
+    return list(remaining_route.coords)
 
 
-@app.route('/routes/<uuid:id_>/suggest_pickup', methods=['GET'])
-def pickup(id_):
-    # Process the arguments
-    driver_route = transform(to_shape(Route.query.get_or_404(id_, ROUTE_NOT_FOUND_MESSAGE).route))
-    try:
-        passenger_start_wgs84 = Point(map(float, request.args['from'].split(',')[::-1]))
-    except KeyError:
-        return 'Please, specify a "from" location as a string <lat,lon>', 400
+def suggest_pickup(route_id):
+    driver_route = transform(to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route))
+    passenger_start_wgs84 = Point(map(float, request.args['position'].split(',')[::-1]))
     passenger_start_projected = transform(passenger_start_wgs84)
     # Identify the closest point on the driver's route
     nearest_point = nearest_points(driver_route, passenger_start_projected)[0]
@@ -126,28 +100,25 @@ def pickup(id_):
             return ''
         # Calculate the straight-line distance for the front to use as the circle radius
         radius = passenger_start_projected.distance(transform(Point(nearest_point)))
-        return jsonify({
+        return {
             'point': nearest_point,
             'radius': round(radius, 2),
             'distance': passenger_route['distance']
-        })
+        }
     except IndexError:
-        return jsonify({})
+        return {}
 
 
-@app.route('/directions', methods=['POST'])
 def directions():
     """"""
-    user_id = request.json.get('user_id')
+    user_id = request.json['user_id']
     # To keep a fixed schema for the response, initialize these collections here
     handles = []
     prepared_routes = []
     # Profile, as it's called in the ORS, is the type of a vehicle, or a pedestrian, to route for
-    profile = request.json.get('profile')
-    if profile not in AVAILABLE_PROFILES:
-        return f'Profile must be one of {AVAILABLE_PROFILES}', 400
+    profile = request.json['profile']
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
-    positions = [position[::-1] for position in request.json.get('positions')]
+    positions = [position[::-1] for position in request.json['positions']]
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
     start, finish = (Point(positions[i]) for i in (0, -1))
     # Reproject them to be used with Shapely (leave the spherical versions to save to the DB later)
@@ -156,8 +127,8 @@ def directions():
     if len(positions) > 2:
         positions.sort(key=lambda x: start_projected.distance(transform(Point(x))))
     # Routing using existing routes
-    from_route_id = request.json.get('from_route_id')  # UUID
-    to_route_id = request.json.get('to_route_id')  # UUID
+    from_route_id = request.json.get('from_route_id')
+    to_route_id = request.json.get('to_route_id')
     from_route = to_shape(Route.query.get_or_404(from_route_id, ROUTE_NOT_FOUND_MESSAGE).route) if from_route_id else None
     to_route = to_shape(Route.query.get_or_404(to_route_id, ROUTE_NOT_FOUND_MESSAGE).route) if to_route_id else None
     if from_route and to_route:
@@ -277,58 +248,47 @@ def directions():
         ))
         routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     db.session.commit()
-    return jsonify({
+    return {
         'routes': routes,
         'handles': handles,
         'prepared_routes': prepared_routes,
-    })
+    }
 
 
-@app.route('/routes/<uuid:route_id>', methods=['GET'])
 def get_route(route_id):
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
     is_full = bool(route.route) and not request.args.get('full', 'true').lower() == 'false'
     route = to_shape(route.route) if is_full else LineString([
         to_shape(pt).coords[0] for pt in (route.start, route.finish)
     ])
-    return {
-        'route': Feature(geometry=route),
-        'full': is_full
-    }
+    return {'route': Feature(geometry=route), 'full': is_full}
 
 
-@app.route('/routes/<uuid:route_id>', methods=['PUT'])
 def delete_discarded_routes(route_id):
-    user_id = request.args.get('user_id')
-    trip_id = request.json.get('trip_id')
+    user_id = request.args['user_id']
+    trip_id = request.json['trip_id']
     try:
         count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
         if count == 0:
             return 'User and route combination not found', 404
         Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).trip_id = trip_id
         db.session.commit()
-    except IntegrityError:
+    except sqlalchemy.exc.IntegrityError as e:
         db.session.rollback()
         return 'Such trip id already exists in the database', 400
     except Exception as e:
         db.session.rollback()
-        return e, 400
-    else:
-        return ''
+        return e, 500
 
 
-@app.route('/routes/<uuid:id_>/candidates', methods=['POST'])
-def get_candidates(id_):
-    target_route = Route.query.get_or_404(id_, ROUTE_NOT_FOUND_MESSAGE)
-    try:
-        candidate_route_ids = request.json['candidate_route_ids']
-    except KeyError:
-        return '"candidate_route_ids" missing from the request body', 400
+def get_candidates(route_id):
+    target_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+    candidate_route_ids = request.json['candidate_route_ids']
     candidate_routes = Route.query.filter(
         Route.id.in_(candidate_route_ids),
-        func.ST_Distance(Route.start, target_route.route) < 10000,
-        func.ST_Distance(Route.finish, target_route.route) < 10000,
-        func.ST_Distance(Route.finish, target_route.finish) < func.ST_Distance(Route.start, target_route.finish),
+        st_distance(Route.start, target_route.route) < 10000,
+        st_distance(Route.finish, target_route.route) < 10000,
+        st_distance(Route.finish, target_route.finish) < st_distance(Route.start, target_route.finish),
     )
     if target_route.profile == 'foot-walking':
         candidate_routes = candidate_routes.filter(Route.trip_id != None)
@@ -348,35 +308,24 @@ def get_candidates(id_):
         )
     }
     candidate_routes.order_by(sum([
-        func.ST_Distance(getattr(Route, candidate_attr), getattr(target_route, target_attr)) * weight
+        st_distance(getattr(Route, candidate_attr), getattr(target_route, target_attr)) * weight
         for candidate_attr, target_attr, weight in sortings[target_route.profile]
     ]))
-    return jsonify([route.id for route in candidate_routes])
+    return [route.id for route in candidate_routes]
 
 
-@app.route('/geocode', methods=['GET'])
 def geocode():
-    text = request.args.get('text')
-    result = ors.geocode(text)
-    return jsonify(result) or '', 404
+    return ors.geocode(request.args['text']) or 'Nothing found; try a different text', 404
 
 
-@app.route('/reverse', methods=['GET'])
 def reverse_geocode():
-    try:
-        position = [float(coord) for coord in request.args.get('position', '').split(',')][0: 2]
-        return ors.reverse_geocode(position) or '', 404
-    except ValueError:
-        return '', 400
+    position = map(float, request.args['position'].split(','))
+    return ors.reverse_geocode(position) or ('Nothing found', 404)
 
 
-@app.route('/suggest', methods=['GET'])
 def suggest():
-    text = request.args.get('text')
+    text = request.args['text']
     result = ors.suggest(text)
-    return jsonify(FeatureCollection([
-        Feature(
-            geometry=feature['geometry'],
-            properties=feature['properties']
-        ) for feature in result]
-    )) if result else '', 404
+    return FeatureCollection(
+        [Feature(geometry=feature['geometry'], properties=feature['properties']) for feature in result]
+    ) if result else 'Nothing found; try a different text', 404
