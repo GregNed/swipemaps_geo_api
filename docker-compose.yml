@@ -4,7 +4,7 @@ services:
     image: registry.gitlab.com/dangoclub/geo
     command: >
       sh -c "flask db upgrade &&
-             flask run --host=0.0.0.0"
+             fconnexion run -H 0.0.0.0 app/swagger.yml ."
     restart: always
     env_file:
       - .env
