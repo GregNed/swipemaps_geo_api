@@ -39,7 +39,7 @@ def get_pickup_point(point_id):
 
 
 def post_pickup_point():
-    geom = Point(request.json['coordinates'][::-1]).wkt
+    geom = Point(request.json['position'][::-1]).wkt
     route_id = request.json['route_id']
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
     if route.profile == 'driving-car':
@@ -54,9 +54,9 @@ def post_pickup_point():
     return point.id
 
 
-def is_at_pickup_point(route_id):
+def is_at_pickup_point(route_id, position):
     point = PickupPoint.query.filter(PickupPoint.route_id == route_id).first_or_404(f'Route {route_id} has no pick-up point')
-    driver_position = transform(Point(map(float, request.args['coordinates'].split(','))))
+    driver_position = transform(Point(map(float, position.split(','))))
     return driver_position.distance(transform(to_shape(point.geom))) < app.config['PICKUP_POINT_PROXIMITY_THRESHOLD']
 
 
@@ -65,7 +65,7 @@ def immitate(route_id):
     route_coords = np.array(route.coords)
     route_coords_delta = np.random.uniform(-20.0, 20.0, (len(route_coords), 2))
     route_coords += route_coords_delta
-    points = [transform(Point(position[::-1])) for position in request.json['points']]
+    points = [transform(Point(position[::-1])) for position in request.json['positions']]
     route_vertices = MultiPoint(route_coords)
     points_snapped = [nearest_points(route_vertices, point)[0].coords[0] for point in points]
     for new, old in zip(points, points_snapped):
@@ -73,21 +73,22 @@ def immitate(route_id):
     return Feature(geometry=transform(LineString(route_coords), to_wgs84=True))
 
 
-def remainder(route_id):
+def remainder(route_id, position):
     driver_route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route)
-    current_position = Point(map(float, request.args.get('position').split(',')[::-1]))
+    current_position = Point(map(float, position.split(',')[::-1]))
     current_position_snapped = nearest_points(driver_route, current_position)[0]
     route_passed_fraction = driver_route.project(current_position_snapped, normalized=True)
     remaining_route = substring(driver_route, route_passed_fraction, 1, normalized=True)
     return list(remaining_route.coords)
 
 
-def suggest_pickup(route_id):
-    driver_route = transform(to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route))
-    passenger_start_wgs84 = Point(map(float, request.args['position'].split(',')[::-1]))
+def suggest_pickup(route_id, position):
+    driver_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+    driver_route_projected = transform(to_shape(driver_route.route))
+    passenger_start_wgs84 = Point(map(float, position.split(',')[::-1]))
     passenger_start_projected = transform(passenger_start_wgs84)
     # Identify the closest point on the driver's route
-    nearest_point = nearest_points(driver_route, passenger_start_projected)[0]
+    nearest_point = nearest_points(driver_route_projected, passenger_start_projected)[0]
     # Obtain the actual (graph-based route) so that the pickup point always be accessible
     passenger_route = ors.directions(
         [pt.coords[0] for pt in (passenger_start_wgs84, transform(nearest_point, to_wgs84=True))],
@@ -96,10 +97,13 @@ def suggest_pickup(route_id):
     try:
         # If straight-line nearest point was unreachable by walking, resulting route may contain a new 'nearest' point
         nearest_point = passenger_route['geometry'][-1]
-        if driver_route.project(transform(Point(nearest_point))) < 500:
-            return ''
-        # Calculate the straight-line distance for the front to use as the circle radius
-        radius = passenger_start_projected.distance(transform(Point(nearest_point)))
+        if driver_route_projected.project(transform(Point(nearest_point))) < 500:
+            radius = 0
+            nearest_point = to_shape(driver_route.start).coords[0]
+            passenger_route = ors.directions([passenger_start_wgs84.coords[0], nearest_point], 'foot-walking')[0]
+        else:
+            # Calculate the straight-line distance for the front to use as the circle radius
+            radius = passenger_start_projected.distance(transform(Point(nearest_point)))
         return {
             'point': nearest_point,
             'radius': round(radius, 2),
@@ -255,17 +259,16 @@ def directions():
     }
 
 
-def get_route(route_id):
+def get_route(route_id, full=True):
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    is_full = bool(route.route) and not request.args.get('full', 'true').lower() == 'false'
+    is_full = bool(route.route) and full
     route = to_shape(route.route) if is_full else LineString([
         to_shape(pt).coords[0] for pt in (route.start, route.finish)
     ])
-    return {'route': Feature(geometry=route), 'full': is_full}
+    return {'route': Feature(id=route_id, geometry=route), 'full': is_full}
 
 
-def delete_discarded_routes(route_id):
-    user_id = request.args['user_id']
+def delete_discarded_routes(route_id, user_id):
     trip_id = request.json['trip_id']
     try:
         count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
@@ -286,8 +289,8 @@ def get_candidates(route_id):
     candidate_route_ids = request.json['candidate_route_ids']
     candidate_routes = Route.query.filter(
         Route.id.in_(candidate_route_ids),
-        st_distance(Route.start, target_route.route) < 10000,
-        st_distance(Route.finish, target_route.route) < 10000,
+        st_distance(Route.start, target_route.route) < 2000,
+        st_distance(Route.finish, target_route.route) < 2000,
         st_distance(Route.finish, target_route.finish) < st_distance(Route.start, target_route.finish),
     )
     if target_route.profile == 'foot-walking':
@@ -314,17 +317,16 @@ def get_candidates(route_id):
     return [route.id for route in candidate_routes]
 
 
-def geocode():
-    return ors.geocode(request.args['text']) or 'Nothing found; try a different text', 404
+def geocode(text):
+    return ors.geocode(text) or 'Nothing found; try a different text', 404
 
 
-def reverse_geocode():
-    position = map(float, request.args['position'].split(','))
+def reverse_geocode(position):
+    position = map(float, position.split(','))
     return ors.reverse_geocode(position) or ('Nothing found', 404)
 
 
-def suggest():
-    text = request.args['text']
+def suggest(text):
     result = ors.suggest(text)
     return FeatureCollection(
         [Feature(geometry=feature['geometry'], properties=feature['properties']) for feature in result]

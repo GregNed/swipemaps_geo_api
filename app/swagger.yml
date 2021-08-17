@@ -30,8 +30,9 @@ paths:
   "/directions":
     post:
       operationId: app.routes.directions
-      summary: Directions
-      description: Build a car or walking route using the specified locations or other routes, and save it to the database
+      summary: Build a route via the OpenRouteService
+      description: |
+        Build a car or walking route using the specified locations or other routes, and save it to the database
       requestBody:
         content:
           application/json:
@@ -45,24 +46,22 @@ paths:
                     - "driving-car"
                     - "foot-walking"
                 make_route:
-                  description: "In some cases no route is actually needed, the goal is just to save to endpoints"
+                  description: In some cases no route is actually needed, the goal is just to save to endpoints
                   type: boolean
                 user_id:
-                  type: string
-                  format: uuid
+                  $ref: "#/components/schemas/UUID"
                 positions:
                   type: array
                   items:
                     $ref: "#/components/schemas/Position"
                 from_route_id:
-                  type: string
-                  format: uuid
+                  $ref: "#/components/schemas/UUID"
                 to_route_id:
-                  type: string
-                  format: uuid
+                  $ref: "#/components/schemas/UUID"
               required:
                 - profile
                 - user_id
+              additionalProperties: false
         required: true
       responses:
         200:
@@ -91,13 +90,13 @@ paths:
     parameters:
       - $ref: "#/components/parameters/routeID"
     get:
-      summary: "Get Route"
-      description: "Retrieve an existing route from the database"
-      operationId: "app.routes.get_route"
+      summary: Get Route
+      description: Retrieve an existing route from the database
+      operationId: app.routes.get_route
       parameters:
         - name: full
           in: query
-          description: "Whether to return the route's geometry, or just the endpoints"
+          description: Whether to return the route's geometry, or just the endpoints
           schema:
             type: boolean
       responses:
@@ -117,16 +116,15 @@ paths:
         404:
           $ref: "#/components/responses/RouteNotFound"
     put:
-      summary: "Select Route"
-      description: "Delete all user's route other than specified by `route_id` and assign it `trip_id`"
-      operationId: "app.routes.delete_discarded_routes"
+      summary: Select Route
+      description: Delete all user's route other than specified by `route_id` and assign it `trip_id`
+      operationId: app.routes.delete_discarded_routes
       parameters:
         - name: user_id
           in: query
           required: true
           schema:
-            type: string
-            format: uuid
+            $ref: "#/components/schemas/UUID"
       requestBody:
         required: true
         content:
@@ -135,22 +133,23 @@ paths:
               type: object
               properties:
                 trip_id:
-                  type: string
-                  format: uuid
+                  $ref: "#/components/schemas/UUID"
               required:
                 - trip_id
+              additionalProperties: false
       responses:
         204:
-          description: "Success"
+          description: |
+            The selected route was successfully updated. The user's other routes were deleted.
         400:
-          description: "Such `trip_id` already exist in the database"
+          description: Such `trip_id` already exist in the database
         404:
-          description: "No such Route and User combination"
+          description: No such route and user combination
   "/routes/{route_id}/immitate":
     post:
-      summary: "Immitate a driver's route"
-      description: "Distort an existing route by simulating GPS inaccuracy"
-      operationId: "app.routes.immitate"
+      summary: Immitate a driver's route
+      description: Distort an existing route by simulating GPS inaccuracy
+      operationId: app.routes.immitate
       parameters:
         - $ref: "#/components/parameters/routeID"
       requestBody:
@@ -159,13 +158,14 @@ paths:
             schema:
               type: object
               properties:
-                points:
+                positions:
                   type: array
-                  description: "Arbitrary positions that the immitated route should include"
+                  description: Arbitrary positions that the immitated route should include
                   items:
                     $ref: "#/components/schemas/Position"
               required:
-                - points
+                - positions
+              additionalProperties: false
       responses:
         200:
           description: Success
@@ -173,14 +173,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Feature"
-                "type": LineString
+                geometryType: LineString
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/remainder":
     get:
-      summary: "Cut off the part of the route 'behind' the driver's position"
+      summary: Return the remaining part of the route
       description: "Returns the specified route without the part behind the driver's position"
-      operationId: "app.routes.remainder"
+      operationId: app.routes.remainder
       parameters:
         - $ref: "#/components/parameters/routeID"
         - $ref: "#/components/parameters/LatLon"
@@ -196,11 +196,11 @@ paths:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/candidates":
     post:
-      summary: "Find suitable passengers/drivers for the route identified by `route_id`"
+      summary: Find suitable passengers or drivers
       description: |
-        "This endpoint first filters, then sorts the canidate routes based on their proximity to route `route_id`.
-        Sorting is ascending, i.e. the best candidate comes first."
-      operationId: "app.routes.get_candidates"
+        This endpoint first filters, then sorts the canidate routes based on their proximity to route `route_id`.
+        Sorting is ascending, i.e. the best candidate comes first.
+      operationId: app.routes.get_candidates
       parameters:
         - $ref: "#/components/parameters/routeID"
       requestBody:
@@ -216,6 +216,7 @@ paths:
                     format: uuid
               required:
                 - candidate_route_ids
+              additionalProperties: false
       responses:
         200:
           description: Success
@@ -223,22 +224,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Feature"
-                "type": LineString
+                geometryType: LineString
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/is_at_pickup_point":
     get:
       summary: Check if the driver's close to a pick-up point
       description: |
-        Returns `true` if `coordinates` are within _{{pickup_point_proximity_threshold}}m_ 
+        Returns `true` if `coordinates` are within {{ pickup_point_proximity_threshold }}m
         from `route`'s pick-up point
-      operationId: "app.routes.is_at_pickup_point"
+      operationId: app.routes.is_at_pickup_point
       parameters:
         - $ref: "#/components/parameters/routeID"
         - $ref: "#/components/parameters/LatLon"
       responses:
         200:
           description: Received
+          content:
+            application/json:
+              schema:
+                type: boolean
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/suggest_pickup":
@@ -246,28 +251,39 @@ paths:
       summary: Suggest a pick-up point
       description: |
         Returns the nearest position on the driver's route which is reachable by foot from `position`
-      operationId: "app.routes.suggest_pickup"
+      operationId: app.routes.suggest_pickup
       parameters:
         - $ref: "#/components/parameters/routeID"
         - $ref: "#/components/parameters/LatLon"
       responses:
         200:
           description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distance:
+                    type: number
+                    format: float
+                  radius:
+                    type: number
+                    format: float
+                  point:
+                    $ref: "#/components/schemas/Position"
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/pickup/{point_id}":
     get:
       summary: Get pick-up point
       description: Retrieve a pick-up point from the database
-      operationId: "app.routes.get_pickup_point"
+      operationId: app.routes.get_pickup_point
       parameters:
         - name: point_id
           in: path
-          description: ID of the point
           required: true
           schema:
-            type: string
-            format: uuid
+            $ref: "#/components/schemas/UUID"
       responses:
         200:
           description: Success
@@ -281,35 +297,37 @@ paths:
     post:
       summary: Save a pick-up point
       description: Save a passenger pick-up point with a reference to their route
-      operationId: "app.routes.post_pickup_point"
+      operationId: app.routes.post_pickup_point
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                coordinates:
+                position:
                   $ref: "#/components/schemas/Position"
                 route_id:
-                  type: string
-                  format: uuid
+                  $ref: "#/components/schemas/UUID"
+              required:
+                - position
+                - route_id
+              additionalProperties: false
             examples:
               Save a point:
-                summary: Save a pick-up point to the database
+                summary: Save a pick-up point in the database
                 externalValue: "https://drive-and-go.postman.co/workspace/20b6cba3-160c-4b6b-8daa-fcbc83b74000/example/5899615-d7af0b13-0333-4e46-945e-82ac75ae7b98"
       responses:
         200:
           description: Success
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                format: uuid
+                $ref: "#/components/schemas/UUID"
   "/suggest":
     get:
-      summary: Get a list addresses and POIs that match `text`
+      summary: Find addresses or POIs that match the text
       description: TODO
-      operationId: "app.routes.suggest"
+      operationId: app.routes.suggest
       parameters:
         - $ref: "#/components/parameters/Text"
       responses:
@@ -322,16 +340,15 @@ paths:
                 items:
                   $ref: "#/components/schemas/Feature"
                   geometryType: Point
-
         400:
           description: "Please, specify what to search for"
         404:
           description: "Nothing found; try a different text"
   "/geocode":
     get:
-      summary: Get coordinates of an address identified by `text`
+      summary: Get coordinates of an address identified by text
       description: TODO
-      operationId: "app.routes.geocode"
+      operationId: app.routes.geocode
       parameters:
         - $ref: "#/components/parameters/Text"
       responses:
@@ -342,31 +359,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/Position"
         400:
-          description: "`text` must be at least 2 characters long"
+          description: "`text` must be at least two characters long"
         404:
-          description: "Nothing found; try a different text"
+          description: Nothing found; try a different text
   "/reverse":
     get:
-      summary: Get an address or POI at `position`
+      summary: Get an address or POI at position
       description: TODO
-      operationId: "app.routes.reverse_geocode"
+      operationId: app.routes.reverse_geocode
       parameters:
         - $ref: "#/components/parameters/LatLon"
       responses:
         200:
           description: The found address or POI as text
           content:
-            text/plain:
+            application/json:
               schema:
                 type: string
         400:
           description: "`position` must a valid lat,lon string"
         404:
-          description: "Nothing found at the given location"
+          description: Nothing found at the given location
 components:
   schemas:
+    UUID:
+      type: string
+      format: uuid
+      pattern: '^[a-fA-F0-9]{8}-?[a-fA-F0-9]{4}-?4[a-fA-F0-9]{3}-?[89ab][a-fA-F0-9]{3}-?[a-fA-F0-9]{12}\Z'
     Position:
-      description: A [lat, lon] array (in this order because it comes from GPS).
+      description: A [lat, lon] array (in this order because it comes from the GPS).
       externalDocs:
         url: "https://tools.ietf.org/html/rfc7946#section-3.1.1"
       type: array
@@ -376,6 +397,7 @@ components:
         type: number
         minimum: -90
         maximum: 180
+      example: [55.5, 37.5432]
     LineString:
       description: A GeoJSON LineString object
       externalDocs:
@@ -397,7 +419,7 @@ components:
         url: "https://tools.ietf.org/html/rfc7946#section-3.1.2"
       type: object
       properties:
-        "type":
+        type:
           type: string
           enum:
             - Point
@@ -410,15 +432,14 @@ components:
       type: object
       properties:
         id:
-          type: string
-          format: uuid
+          $ref: "#/components/schemas/UUID"
         geometry:
           oneOf:
             - $ref: "#/components/schemas/Point"
             - $ref: "#/components/schemas/LineString"
           discriminator:
             propertyName: geometryType
-        "properties":
+        properties:
           type: object
           nullable: true
       required:
@@ -430,8 +451,7 @@ components:
       in: path
       required: true
       schema:
-        type: string
-        format: uuid
+        $ref: "#/components/schemas/UUID"
     Text:
       name: text
       in: query
@@ -447,6 +467,8 @@ components:
       schema:
         type: string
         format: latlon
+        pattern: '^\s*-?\d{1,2}(\.\d+)?,\s?-?\d{1,3}(\.\d+)?\s*\Z'
+      example: "55.532,37.3433"
   responses:
     RouteNotFound:
       description: "No such route in the database :-("
