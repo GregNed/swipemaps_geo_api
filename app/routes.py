@@ -115,12 +115,9 @@ def suggest_pickup(route_id, position):
 
 def directions():
     """"""
-    user_id = request.json['user_id']
-    # To keep a fixed schema for the response, initialize these collections here
-    handles = []
-    prepared_routes = []
-    # Profile, as it's called in the ORS, is the type of a vehicle, or a pedestrian, to route for
-    profile = request.json['profile']
+    user_id, profile = request.json['user_id'], request.json['profile']
+    with_alternatives = request.json.get('alternatives', True)
+    with_handles = request.json.get('handles', True)
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
@@ -144,11 +141,9 @@ def directions():
     elif to_route:
         nearest_point = nearest_points(to_route, start)[0]
         positions.append(nearest_point.coords[0])
-    # If routing via exisiting routes was request, only now is the position list final
-    # On a driver's first request, several alternatives will be generated; let's call such a request 'initial'
-    is_drivers_initial = profile == 'driving-car' and len(positions) == 2
     # Check if there are similar routes in the user's history; if there are any, return them along w/ the new ones
-    if is_drivers_initial:
+    prepared_routes = []
+    if with_alternatives:
         # Get all the routes from the user's history
         past_routes = Route.query.filter(Route.trip_id != None, Route.user_id == user_id).all()
         # Filter out those whose start & finish were close enough to the currently requested ones
@@ -207,9 +202,18 @@ def directions():
                 'duration': sum([part['duration'] for part in (route, tail, head)])
             })
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
-    if request.json.get('make_route', True):
-        # If it's driver's 1st routing request, suggest alternatives
-        routes = ors.directions(positions, profile, is_drivers_initial)
+    if not request.json.get('make_route', True):
+        route_id = uuid4()
+        db.session.add(Route(
+            id=route_id,
+            user_id=user_id,
+            profile=profile,
+            start=start.wkt,
+            finish=finish.wkt
+        ))
+        routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
+    else:
+        routes = ors.directions(positions, profile, with_alternatives)
         # Save routes to DB
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
@@ -224,9 +228,9 @@ def directions():
                 distance=route['distance'],
                 duration=route['duration']
             ))
-        if profile == 'driving-car':
+        if profile == 'driving-car' and with_handles:
             # Get midpoints of the route's last segment for the user to drag on the screen
-            routes_last_parts = routes if is_drivers_initial else ors.directions(positions[-2:], profile)
+            routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], profile)
             routes_last_parts = [route['geometry'] for route in routes_last_parts]
             handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
             handles = [Point(handle.coords[0]) for handle in handles]
@@ -241,21 +245,11 @@ def directions():
                 ) for route_id, route in zip(route_ids, route_set)
             ]) for route_set in (routes, prepared_routes)
         ]
-    else:
-        route_id = uuid4()
-        db.session.add(Route(
-            id=route_id,
-            user_id=user_id,
-            profile=profile,
-            start=start.wkt,
-            finish=finish.wkt
-        ))
-        routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     db.session.commit()
     return {
         'routes': routes,
-        'handles': handles,
-        'prepared_routes': prepared_routes,
+        'handles': handles if with_handles else [],
+        'prepared_routes': prepared_routes if with_alternatives else [],
     }
 
 

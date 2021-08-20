@@ -39,25 +39,34 @@ paths:
             schema:
               type: object
               properties:
+                positions:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Position"
                 profile:
                   description: "Transportation mode: either car or walking"
                   type: string
                   enum:
                     - "driving-car"
                     - "foot-walking"
-                make_route:
-                  description: In some cases no route is actually needed, the goal is just to save to endpoints
-                  type: boolean
                 user_id:
                   $ref: "#/components/schemas/UUID"
-                positions:
-                  type: array
-                  items:
-                    $ref: "#/components/schemas/Position"
                 from_route_id:
                   $ref: "#/components/schemas/UUID"
                 to_route_id:
                   $ref: "#/components/schemas/UUID"
+                make_route:
+                  description: In some cases no route is actually needed, the goal is just to save to endpoints
+                  type: boolean
+                  default: true
+                alternatives:
+                  description: Whether to suggest alternative routes
+                  type: boolean
+                  default: true
+                handles:
+                  description: Whether to return a mid-point for each route so the user could drag it to re-route
+                  type: boolean
+                  default: true
               required:
                 - profile
                 - user_id
@@ -99,6 +108,7 @@ paths:
           description: Whether to return the route's geometry, or just the endpoints
           schema:
             type: boolean
+            default: true
       responses:
         200:
           description: Success
