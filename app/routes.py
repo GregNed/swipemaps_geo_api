@@ -118,6 +118,8 @@ def directions():
     user_id, profile = request.json['user_id'], request.json['profile']
     with_alternatives = request.json.get('alternatives', True)
     with_handles = request.json.get('handles', True)
+    prepared_routes = []
+    handles = []
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
@@ -142,7 +144,6 @@ def directions():
         nearest_point = nearest_points(to_route, start)[0]
         positions.append(nearest_point.coords[0])
     # Check if there are similar routes in the user's history; if there are any, return them along w/ the new ones
-    prepared_routes = []
     if with_alternatives:
         # Get all the routes from the user's history
         past_routes = Route.query.filter(Route.trip_id != None, Route.user_id == user_id).all()
