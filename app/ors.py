@@ -27,16 +27,13 @@ def directions(positions: list[float], profile: str, alternatives: bool = False)
                 'share_factor': 0.8
             }
         }
-    try:
-        res = client.directions(positions, **args)
-        return [{
-            'geometry': ors.convert.decode_polyline(route['geometry'])['coordinates'],
-            # Distance & duration are missing for single-segment routes apparently
-            'distance': route['summary'].get('distance', 0),
-            'duration': route['summary'].get('duration', 0)
-        } for route in res.get('routes', [])]
-    except ors.exceptions.ApiError:
-        return []
+    res = client.directions(positions, **args)
+    return [{
+        'geometry': ors.convert.decode_polyline(route['geometry'])['coordinates'],
+        # Distance & duration are missing for single-segment routes apparently
+        'distance': route['summary'].get('distance', 0),
+        'duration': route['summary'].get('duration', 0)
+    } for route in res.get('routes', [])]
 
 
 def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
