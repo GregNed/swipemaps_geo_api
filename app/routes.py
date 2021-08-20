@@ -289,9 +289,10 @@ def get_candidates(route_id):
     candidate_route_ids = request.json['candidate_route_ids']
     candidate_routes = Route.query.filter(
         Route.id.in_(candidate_route_ids),
-        st_distance(Route.start, target_route.route) < 2000,
-        st_distance(Route.finish, target_route.route) < 2000,
-        st_distance(Route.finish, target_route.finish) < st_distance(Route.start, target_route.finish),
+        Route.user_id != target_route.user_id,
+        st_distance(Route.start, target_route.route) < 30000,
+        st_distance(Route.finish, target_route.route) < 30000,
+        st_distance(Route.finish, target_route.finish) < st_distance(Route.start, target_route.finish)
     )
     if target_route.profile == 'foot-walking':
         candidate_routes = candidate_routes.filter(Route.trip_id != None)
