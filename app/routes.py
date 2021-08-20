@@ -116,12 +116,12 @@ def suggest_pickup(route_id, position):
 def directions():
     """"""
     user_id, profile = request.json['user_id'], request.json['profile']
-    with_alternatives = request.json.get('alternatives', True)
-    with_handles = request.json.get('handles', True)
     prepared_routes = []
     handles = []
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
+    with_alternatives = request.json.get('alternatives', True) and len(positions) == 2
+    with_handles = request.json.get('handles', True)
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
     start, finish = (Point(positions[i]) for i in (0, -1))
     # Reproject them to be used with Shapely (leave the spherical versions to save to the DB later)
