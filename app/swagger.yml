@@ -327,12 +327,22 @@ paths:
                 summary: Save a pick-up point in the database
                 externalValue: "https://drive-and-go.postman.co/workspace/20b6cba3-160c-4b6b-8daa-fcbc83b74000/example/5899615-d7af0b13-0333-4e46-945e-82ac75ae7b98"
       responses:
-        200:
+        201:
           description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UUID"
+          links:
+            Get the point:
+              operationId: app.routes.get_pickup_point
+              parameters:
+                point_id: $response.body
+        400:
+          description: Bad request, e.g. duplicate points or invalid parameters
+        500:
+          description: Server error. Often, an ORS error that may actually be cause by a bad request
+
   "/suggest":
     get:
       summary: Find addresses or POIs that match the text

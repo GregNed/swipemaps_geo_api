@@ -6,8 +6,9 @@ import sqlalchemy
 from shapely.geometry import Point, LineString, MultiPoint
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
-from flask import request
+from flask import request, jsonify
 from geoalchemy2.shape import to_shape
+from openrouteservice.exceptions import ApiError
 
 from app import app, db, ors
 from app.models import Route, PickupPoint
@@ -51,7 +52,7 @@ def post_pickup_point():
         point = PickupPoint(id=uuid4(), geom=geom, route_id=route_id)
         db.session.add(point)
     db.session.commit()
-    return point.id
+    return point.id, 201
 
 
 def is_at_pickup_point(route_id, position):
@@ -120,6 +121,8 @@ def directions():
     handles = []
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
+    if len(set(str(position) for position in positions)) != len(positions):
+        return 'Request contains duplicate positions', 400
     with_alternatives = request.json.get('alternatives', True) and len(positions) == 2
     with_handles = request.json.get('handles', True)
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
@@ -165,8 +168,11 @@ def directions():
             # Get the routes between the user's requested points and those closest to them on the past route
             # A tail is from the start to the point closest to the start, a head - likewise but from the finish
             empty_route = {'geometry': [], 'distance': 0, 'duration': 0}
-            tail = ors.directions([positions[0], nearest_to_start_4326], profile, alternatives=False)[0]
-            head = ors.directions([nearest_to_finish_4326, positions[-1]], profile, alternatives=False)[0]
+            try:
+                tail = ors.directions([positions[0], nearest_to_start_4326], profile, alternatives=False)[0]
+                head = ors.directions([nearest_to_finish_4326, positions[-1]], profile, alternatives=False)[0]
+            except ApiError as e:
+                return str(e), 500
             if len(tail['geometry']) < 2:
                 tail = empty_route
             if len(head['geometry']) < 2:
@@ -214,7 +220,10 @@ def directions():
         ))
         routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     else:
-        routes = ors.directions(positions, profile, with_alternatives)
+        try:
+            routes = ors.directions(positions, profile, with_alternatives)
+        except ApiError as e:
+            return str(e), 500
         # Save routes to DB
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
@@ -231,7 +240,10 @@ def directions():
             ))
         if profile == 'driving-car' and with_handles:
             # Get midpoints of the route's last segment for the user to drag on the screen
-            routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], profile)
+            try:
+                routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], profile)
+            except ApiError as e:
+                return str(e), 500
             routes_last_parts = [route['geometry'] for route in routes_last_parts]
             handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
             handles = [Point(handle.coords[0]) for handle in handles]
