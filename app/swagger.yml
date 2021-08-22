@@ -237,25 +237,6 @@ paths:
                 geometryType: LineString
         404:
           $ref: "#/components/responses/RouteNotFound"
-  "/routes/{route_id}/is_at_pickup_point":
-    get:
-      summary: Check if the driver's close to a pick-up point
-      description: |
-        Returns `true` if `coordinates` are within {{ pickup_point_proximity_threshold }}m
-        from `route`'s pick-up point
-      operationId: app.routes.is_at_pickup_point
-      parameters:
-        - $ref: "#/components/parameters/routeID"
-        - $ref: "#/components/parameters/LatLon"
-      responses:
-        200:
-          description: Received
-          content:
-            application/json:
-              schema:
-                type: boolean
-        404:
-          $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/suggest_pickup":
     get:
       summary: Suggest a pick-up point

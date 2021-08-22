@@ -55,12 +55,6 @@ def post_pickup_point():
     return point.id, 201
 
 
-def is_at_pickup_point(route_id, position):
-    point = PickupPoint.query.filter(PickupPoint.route_id == route_id).first_or_404(f'Route {route_id} has no pick-up point')
-    driver_position = transform(Point(map(float, position.split(',')[::-1])))
-    return driver_position.distance(transform(to_shape(point.geom))) < app.config['PICKUP_POINT_PROXIMITY_THRESHOLD']
-
-
 def immitate(route_id):
     route = transform(to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route))
     route_coords = np.array(route.coords)

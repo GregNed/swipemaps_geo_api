@@ -23,6 +23,5 @@ connexion_app.add_api(
     'swagger.yml',
     strict_validation=True,
     # validate_responses=True,
-    arguments={
-        'pickup_point_proximity_threshold': app.config['PICKUP_POINT_PROXIMITY_THRESHOLD']
-    })
+    arguments={}
+)
