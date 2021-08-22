@@ -34,9 +34,9 @@ def healthcheck():
     return {'status': 'OK'}
 
 
-def get_pickup_point(point_id):
-    point = PickupPoint.query.get_or_404(point_id, 'No such pick-up point in the database :-(')
-    return list(to_shape(point.geom).coords[0])
+def get_pickup_point(route_id):
+    point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).pickup_point
+    return list(to_shape(point.geom).coords[0]) if point else (f'Route {route_id} has no pick-up point', 404)
 
 
 def post_pickup_point():

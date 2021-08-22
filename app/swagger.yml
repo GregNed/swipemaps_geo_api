@@ -264,13 +264,13 @@ paths:
                     $ref: "#/components/schemas/Position"
         404:
           $ref: "#/components/responses/RouteNotFound"
-  "/pickup/{point_id}":
+  "/routes/{route_id}/pickup":
     get:
       summary: Get pick-up point
-      description: Retrieve a pick-up point from the database
+      description: Retrieve a pick-up point from the database using it's route's ID
       operationId: app.routes.get_pickup_point
       parameters:
-        - name: point_id
+        - name: route_id
           in: path
           required: true
           schema:
@@ -323,7 +323,6 @@ paths:
           description: Bad request, e.g. duplicate points or invalid parameters
         500:
           description: Server error. Often, an ORS error that may actually be cause by a bad request
-
   "/suggest":
     get:
       summary: Find addresses or POIs that match the text
@@ -474,7 +473,7 @@ components:
     RouteNotFound:
       description: "No such route in the database :-("
     PickupPointNotFound:
-      description: "No such pick-up point in the database :-("
+      description: "No such route in the database, or it has no pick-up point :-("
   # securitySchemes:
   #   BasicAuth:
   #     type: http
