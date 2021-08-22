@@ -26,7 +26,7 @@ class PickupPoint(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True)
     route_id = db.Column(UUID(as_uuid=True), db.ForeignKey('route.id', ondelete='CASCADE'), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    geom = db.Column(Geography('Point', srid=4326), nullable=False)
+    geog = db.Column(Geography('Point', srid=4326), nullable=False)
 
     def __repr__(self):
         return f'<Pickup point {self.id}>'

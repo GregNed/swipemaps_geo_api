@@ -36,20 +36,19 @@ def healthcheck():
 
 def get_pickup_point(route_id):
     point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).pickup_point
-    return list(to_shape(point.geom).coords[0]) if point else (f'Route {route_id} has no pick-up point', 404)
+    return list(to_shape(point.geog).coords[0]) if point else (f'Route {route_id} has no pick-up point', 404)
 
 
-def post_pickup_point():
-    geom = Point(request.json['position'][::-1]).wkt
-    route_id = request.json['route_id']
+def post_pickup_point(route_id):
+    geog = Point(request.json['position'][::-1]).wkt
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
     if route.profile == 'driving-car':
         return 'Only passenger routes can have pick-up points', 400
     point = PickupPoint.query.filter(PickupPoint.route_id == route_id).first()
     if point:
-        point.geom = geom
+        point.geog = geog
     else:
-        point = PickupPoint(id=uuid4(), geom=geom, route_id=route_id)
+        point = PickupPoint(id=uuid4(), geog=geog, route_id=route_id)
         db.session.add(point)
     db.session.commit()
     return point.id, 201

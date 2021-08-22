@@ -265,16 +265,12 @@ paths:
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/pickup":
+    parameters:
+      - $ref: "#/components/parameters/routeID"
     get:
       summary: Get pick-up point
       description: Retrieve a pick-up point from the database using it's route's ID
       operationId: app.routes.get_pickup_point
-      parameters:
-        - name: route_id
-          in: path
-          required: true
-          schema:
-            $ref: "#/components/schemas/UUID"
       responses:
         200:
           description: Success
@@ -284,7 +280,6 @@ paths:
                 $ref: "#/components/schemas/Position"
         404:
           $ref: "#/components/responses/PickupPointNotFound"
-  "/pickup":
     post:
       summary: Save a pick-up point
       description: Save a passenger pick-up point with a reference to their route
@@ -297,11 +292,8 @@ paths:
               properties:
                 position:
                   $ref: "#/components/schemas/Position"
-                route_id:
-                  $ref: "#/components/schemas/UUID"
               required:
                 - position
-                - route_id
               additionalProperties: false
             examples:
               Save a point:
