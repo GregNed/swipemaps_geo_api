@@ -9,6 +9,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ['DATABASE_URL']
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Business logic parameters
+    CANDIDATE_DISTANCE_LIMIT = 30000
 
 
 class ProductionConfig(Config):

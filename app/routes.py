@@ -11,7 +11,7 @@ from flask import request
 from geoalchemy2.shape import to_shape
 from openrouteservice.exceptions import ApiError
 
-from app import db, ors
+from app import app, db, ors
 from app.models import Route, PickupPoint
 
 
@@ -288,8 +288,8 @@ def get_candidates(route_id):
     candidate_routes = Route.query.filter(
         Route.id.in_(candidate_route_ids),
         Route.user_id != target_route.user_id,
-        func.ST_Distance(candidate_start, target_route.geog) < 30000,
-        func.ST_Distance(candidate_finish, target_route.geog) < 30000,
+        func.ST_Distance(candidate_start, target_route.geog) < app.config['CANDIDATE_DISTANCE_LIMIT'],
+        func.ST_Distance(candidate_finish, target_route.geog) < app.config['CANDIDATE_DISTANCE_LIMIT'],
         func.ST_Distance(candidate_finish, target_finish) < func.ST_Distance(candidate_start, target_finish)
     )
     if target_route.profile == 'foot-walking':
