@@ -3,6 +3,7 @@ from uuid import uuid4
 import numpy as np
 import pyproj
 import sqlalchemy
+from sqlalchemy import func
 from shapely.geometry import Point, LineString, MultiPoint
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
@@ -10,11 +11,10 @@ from flask import request
 from geoalchemy2.shape import to_shape
 from openrouteservice.exceptions import ApiError
 
-from app import app, db, ors
+from app import db, ors
 from app.models import Route, PickupPoint
 
 
-st_distance = sqlalchemy.func.ST_Distance
 POINT_PROXIMITY_THRESHOLD = 1000
 MAX_PREPARED_ROUTES = 5
 TRANSFORM = pyproj.Transformer.from_crs(4326, 32637, always_xy=True)
@@ -56,7 +56,7 @@ def post_pickup_point():
 
 
 def immitate(route_id):
-    route = transform(to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route))
+    route = transform(to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geog))
     route_coords = np.array(route.coords)
     route_coords_delta = np.random.uniform(-20.0, 20.0, (len(route_coords), 2))
     route_coords += route_coords_delta
@@ -69,7 +69,7 @@ def immitate(route_id):
 
 
 def remainder(route_id, position):
-    driver_route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).route)
+    driver_route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geog)
     current_position = Point(map(float, position.split(',')[::-1]))
     current_position_snapped = nearest_points(driver_route, current_position)[0]
     route_passed_fraction = driver_route.project(current_position_snapped, normalized=True)
@@ -79,7 +79,7 @@ def remainder(route_id, position):
 
 def suggest_pickup(route_id, position):
     driver_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    driver_route_projected = transform(to_shape(driver_route.route))
+    driver_route_projected = transform(to_shape(driver_route.geog))
     passenger_start_wgs84 = Point(map(float, position.split(',')[::-1]))
     passenger_start_projected = transform(passenger_start_wgs84)
     # Identify the closest point on the driver's route
@@ -94,7 +94,7 @@ def suggest_pickup(route_id, position):
         nearest_point = passenger_route['geometry'][-1]
         if driver_route_projected.project(transform(Point(nearest_point))) < 500:
             radius = 0
-            nearest_point = to_shape(driver_route.start).coords[0]
+            nearest_point = to_shape(driver_route.geog).coords[0]
             passenger_route = ors.directions([passenger_start_wgs84.coords[0], nearest_point], 'foot-walking')[0]
         else:
             # Calculate the straight-line distance for the front to use as the circle radius
@@ -127,10 +127,10 @@ def directions():
     # Routing using existing routes
     from_route_id, to_route_id = request.json.get('from_route_id'), request.json.get('to_route_id')
     from_route = to_shape(
-        Route.query.get_or_404(from_route_id, ROUTE_NOT_FOUND_MESSAGE).route
+        Route.query.get_or_404(from_route_id, ROUTE_NOT_FOUND_MESSAGE).geog
     ) if from_route_id else None
     to_route = to_shape(
-        Route.query.get_or_404(to_route_id, ROUTE_NOT_FOUND_MESSAGE).route
+        Route.query.get_or_404(to_route_id, ROUTE_NOT_FOUND_MESSAGE).geog
     ) if to_route_id else None
     if from_route and to_route:
         from_point, to_point = [point.coords[0] for point in nearest_points(from_route, to_route)]
@@ -147,10 +147,10 @@ def directions():
         past_routes = Route.query.filter(Route.trip_id != None, Route.user_id == request.json['user_id']).all()
         # Filter out those whose start & finish were close enough to the currently requested ones
         similar_routes = [
-            {'geometry': to_shape(route.route), 'distance': route.distance, 'duration': route.duration}
+            {'geometry': to_shape(route.geog), 'distance': route.distance, 'duration': route.duration}
             for route in past_routes
-            if transform(to_shape(route.start)).distance(start_projected) < POINT_PROXIMITY_THRESHOLD
-            and transform(to_shape(route.finish)).distance(finish_projected) < POINT_PROXIMITY_THRESHOLD
+            if transform(Point(to_shape(route.geog).coords[0])).distance(start_projected) < POINT_PROXIMITY_THRESHOLD
+            and transform(Point(to_shape(route.geog).coords[0])).distance(finish_projected) < POINT_PROXIMITY_THRESHOLD
         ]
         for route in similar_routes[:MAX_PREPARED_ROUTES]:
             route_geom = transform(LineString(route['geometry']))
@@ -208,8 +208,7 @@ def directions():
             id=route_id,
             user_id=request.json['user_id'],
             profile=request.json['profile'],
-            start=start.wkt,
-            finish=finish.wkt
+            geog=LineString([start, finish])
         ))
         routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     else:
@@ -225,9 +224,7 @@ def directions():
                 id=route_id,
                 user_id=request.json['user_id'],
                 profile=request.json['profile'],
-                route=LineString(route['geometry']).wkt,
-                start=start.wkt,
-                finish=finish.wkt,
+                geog=LineString(route['geometry']).wkt,
                 distance=route['distance'],
                 duration=route['duration']
             ))
@@ -260,12 +257,10 @@ def directions():
 
 
 def get_route(route_id, full=True):
-    route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    is_full = bool(route.route) and full
-    route = to_shape(route.route) if is_full else LineString([
-        to_shape(pt).coords[0] for pt in (route.start, route.finish)
-    ])
-    return {'route': Feature(id=route_id, geometry=route), 'full': is_full}
+    route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geog)
+    if not full:
+        route = LineString([route.coords[0], route.coords[-1]])
+    return {'route': Feature(id=route_id, geometry=route), 'full': full}
 
 
 def delete_discarded_routes(route_id, user_id):
@@ -286,34 +281,38 @@ def delete_discarded_routes(route_id, user_id):
 
 def get_candidates(route_id):
     target_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+    target_start = func.ST_StartPoint(func.ST_GeomFromWKB(target_route.geog))
+    target_finish = func.ST_EndPoint(func.ST_GeomFromWKB(target_route.geog))
     candidate_route_ids = request.json['candidate_route_ids']
+    candidate_start = func.ST_StartPoint(func.ST_GeomFromWKB(Route.geog))
+    candidate_finish = func.ST_EndPoint(func.ST_GeomFromWKB(Route.geog))
     candidate_routes = Route.query.filter(
         Route.id.in_(candidate_route_ids),
         Route.user_id != target_route.user_id,
-        st_distance(Route.start, target_route.route) < 30000,
-        st_distance(Route.finish, target_route.route) < 30000,
-        st_distance(Route.finish, target_route.finish) < st_distance(Route.start, target_route.finish)
+        func.ST_Distance(candidate_start, target_route.geog) < 30000,
+        func.ST_Distance(candidate_finish, target_route.geog) < 30000,
+        func.ST_Distance(candidate_finish, target_finish) < func.ST_Distance(candidate_start, target_finish)
     )
     if target_route.profile == 'foot-walking':
         candidate_routes = candidate_routes.filter(Route.trip_id != None)
     # Define attributes & weights for sorting: (candidate_route, target_route, weight)
     sortings = {
         'driving-car': (
-            ('start', 'start', .35),
-            ('finish', 'finish', .35),
-            ('start', 'route', .15),
-            ('finish', 'route', .15)
+            (candidate_start, target_start, .35),
+            (candidate_finish, target_finish, .35),
+            (candidate_start, target_route.geog, .15),
+            (candidate_finish, target_route.geog, .15)
         ),
         'foot-walking': (
-            ('start', 'start', .35),
-            ('finish', 'finish', .35),
-            ('route', 'start', .15),
-            ('route', 'finish', .15)
+            (candidate_start, target_start, .35),
+            (candidate_finish, target_finish, .35),
+            (Route.geog, target_start, .15),
+            (Route.geog, target_finish, .15)
         )
     }
     candidate_routes.order_by(sum([
-        st_distance(getattr(Route, candidate_attr), getattr(target_route, target_attr)) * weight
-        for candidate_attr, target_attr, weight in sortings[target_route.profile]
+        func.ST_Distance(from_, to_) * weight
+        for from_, to_, weight in sortings[target_route.profile]
     ]))
     return [route.id for route in candidate_routes]
 
