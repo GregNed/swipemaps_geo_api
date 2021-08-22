@@ -6,7 +6,7 @@ import sqlalchemy
 from shapely.geometry import Point, LineString, MultiPoint
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
-from flask import request, jsonify
+from flask import request
 from geoalchemy2.shape import to_shape
 from openrouteservice.exceptions import ApiError
 
@@ -116,9 +116,7 @@ def suggest_pickup(route_id, position):
 
 def directions():
     """"""
-    user_id, profile = request.json['user_id'], request.json['profile']
-    prepared_routes = []
-    handles = []
+    prepared_routes, handles = [], []
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
     if len(set(str(position) for position in positions)) != len(positions):
@@ -126,17 +124,20 @@ def directions():
     with_alternatives = request.json.get('alternatives', True) and len(positions) == 2
     with_handles = request.json.get('handles', True)
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
-    start, finish = (Point(positions[i]) for i in (0, -1))
+    start, finish = Point(positions[0]), Point(positions[1])
     # Reproject them to be used with Shapely (leave the spherical versions to save to the DB later)
-    start_projected, finish_projected = (transform(point) for point in (start, finish))
+    start_projected, finish_projected = transform(start), transform(finish)
     # Order intermediate positions along the route
     if len(positions) > 2:
         positions.sort(key=lambda x: start_projected.distance(transform(Point(x))))
     # Routing using existing routes
-    from_route_id = request.json.get('from_route_id')
-    to_route_id = request.json.get('to_route_id')
-    from_route = to_shape(Route.query.get_or_404(from_route_id, ROUTE_NOT_FOUND_MESSAGE).route) if from_route_id else None
-    to_route = to_shape(Route.query.get_or_404(to_route_id, ROUTE_NOT_FOUND_MESSAGE).route) if to_route_id else None
+    from_route_id, to_route_id = request.json.get('from_route_id'), request.json.get('to_route_id')
+    from_route = to_shape(
+        Route.query.get_or_404(from_route_id, ROUTE_NOT_FOUND_MESSAGE).route
+    ) if from_route_id else None
+    to_route = to_shape(
+        Route.query.get_or_404(to_route_id, ROUTE_NOT_FOUND_MESSAGE).route
+    ) if to_route_id else None
     if from_route and to_route:
         from_point, to_point = [point.coords[0] for point in nearest_points(from_route, to_route)]
         positions = [from_point, *positions, to_point]
@@ -149,7 +150,7 @@ def directions():
     # Check if there are similar routes in the user's history; if there are any, return them along w/ the new ones
     if with_alternatives:
         # Get all the routes from the user's history
-        past_routes = Route.query.filter(Route.trip_id != None, Route.user_id == user_id).all()
+        past_routes = Route.query.filter(Route.trip_id != None, Route.user_id == request.json['user_id']).all()
         # Filter out those whose start & finish were close enough to the currently requested ones
         similar_routes = [
             {'geometry': to_shape(route.route), 'distance': route.distance, 'duration': route.duration}
@@ -169,14 +170,12 @@ def directions():
             # A tail is from the start to the point closest to the start, a head - likewise but from the finish
             empty_route = {'geometry': [], 'distance': 0, 'duration': 0}
             try:
-                tail = ors.directions([positions[0], nearest_to_start_4326], profile, alternatives=False)[0]
-                head = ors.directions([nearest_to_finish_4326, positions[-1]], profile, alternatives=False)[0]
+                tail = ors.directions([positions[0], nearest_to_start_4326], request.json['profile'])[0]
+                head = ors.directions([nearest_to_finish_4326, positions[-1]], request.json['profile'])[0]
             except ApiError as e:
                 return str(e), 500
-            if len(tail['geometry']) < 2:
-                tail = empty_route
-            if len(head['geometry']) < 2:
-                head = empty_route
+            for part in (tail, head):
+                part = empty_route if len(part['geometry']) < 2 else part
             tail_geom, head_geom = [transform(LineString(part['geometry']).simplify(0)) for part in (tail, head)]
             # Extract the relevant part of the past route
             cut_point_distances = [route_geom.project(pt) for pt in (nearest_to_start, nearest_to_finish)]
@@ -209,19 +208,19 @@ def directions():
                 'duration': sum([part['duration'] for part in (route, tail, head)])
             })
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
-    if not request.json.get('make_route', True):
+    if request.json.get('make_route') is False:
         route_id = uuid4()
         db.session.add(Route(
             id=route_id,
-            user_id=user_id,
-            profile=profile,
+            user_id=request.json['user_id'],
+            profile=request.json['profile'],
             start=start.wkt,
             finish=finish.wkt
         ))
         routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     else:
         try:
-            routes = ors.directions(positions, profile, with_alternatives)
+            routes = ors.directions(positions, request.json['profile'], with_alternatives)
         except ApiError as e:
             return str(e), 500
         # Save routes to DB
@@ -230,18 +229,18 @@ def directions():
         for route, route_id in zip(all_routes, route_ids):
             db.session.add(Route(
                 id=route_id,
-                user_id=user_id,
-                profile=profile,
+                user_id=request.json['user_id'],
+                profile=request.json['profile'],
                 route=LineString(route['geometry']).wkt,
                 start=start.wkt,
                 finish=finish.wkt,
                 distance=route['distance'],
                 duration=route['duration']
             ))
-        if profile == 'driving-car' and with_handles:
+        if request.json['profile'] == 'driving-car' and with_handles:
             # Get midpoints of the route's last segment for the user to drag on the screen
             try:
-                routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], profile)
+                routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], request.json['profile'])
             except ApiError as e:
                 return str(e), 500
             routes_last_parts = [route['geometry'] for route in routes_last_parts]
