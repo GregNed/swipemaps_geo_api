@@ -17,7 +17,7 @@ class Route(db.Model):
     finish = db.Column(Geography('Point', srid=4326), nullable=False)
     distance = db.Column(db.Float)
     duration = db.Column(db.Float)
-    pickup_point = db.relationship('PickupPoint', backref='route', lazy=True)
+    pickup_point = db.relationship('PickupPoint', backref='route', uselist=False, lazy=True)
 
     def __repr__(self):
         return f'<Route {self.user_id}>'
