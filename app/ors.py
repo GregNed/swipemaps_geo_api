@@ -21,8 +21,8 @@ def directions(positions: list[float], profile: str, alternatives: bool = False,
         'geometry': geometry,
         'format': 'geojson' if geometry else 'json',
         'alternative_routes': {
-            'target_count': 3,
-            'weight_factor': 2.0,
+            'target_count': 2,
+            'weight_factor': 1.4,
             'share_factor': 0.8
         } if alternatives else False
     }
