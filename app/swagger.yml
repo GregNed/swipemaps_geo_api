@@ -30,7 +30,7 @@ paths:
   "/directions":
     post:
       operationId: app.routes.directions
-      summary: Build a route via the OpenRouteService
+      summary: Directions
       description: |
         Build a car or walking route using the specified locations or other routes, and save it to the database
       requestBody:
@@ -81,20 +81,11 @@ paths:
                 type: object
                 properties:
                   routes:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Feature"
-                      geometryType: LineString
+                    $ref: "#/components/schemas/FeatureCollection"
                   prepared_routes:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Feature"
-                      "type": LineString
+                    $ref: "#/components/schemas/FeatureCollection"
                   handles:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Feature"
-                      "type": Point
+                    $ref: "#/components/schemas/FeatureCollection"
   "/routes/{route_id}":
     parameters:
       - $ref: "#/components/parameters/routeID"
@@ -200,8 +191,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Feature"
-                geometryType: LineString
+                $ref: "#/components/schemas/LineStringCoordinates"
+                # $ref: "#/components/schemas/Feature"
+                # geometryType: LineString
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/candidates":
@@ -377,7 +369,113 @@ components:
     UUID:
       type: string
       format: uuid
-      pattern: '^[a-fA-F0-9]{8}-?[a-fA-F0-9]{4}-?4[a-fA-F0-9]{3}-?[89ab][a-fA-F0-9]{3}-?[a-fA-F0-9]{12}\Z'
+      pattern: "^[a-fA-F0-9]{8}-?[a-fA-F0-9]{4}-?4[a-fA-F0-9]{3}-?[89ab][a-fA-F0-9]{3}-?[a-fA-F0-9]{12}$"
+    GeoJsonObject:
+      description: Base GeoJSON object
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3"
+      type: object
+      properties:
+        "type":
+          type: string
+          enum:
+            - Feature
+            - FeatureCollection
+            - Point
+            - MultiPoint
+            - LineString
+            - MultiLineString
+            - Polygon
+            - MultiPolygon
+            - GeometryCollection
+        bbox:
+          description: Bounding box a.k.a extent
+          type: array
+          items:
+            type: number
+      required:
+        - type
+      discriminator:
+        propertyName: type
+    Geometry:
+      description: Abstract type for all GeoJSON objects except Feature and FeatureCollection
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3"
+      allOf:
+        - $ref: "#/components/schemas/GeoJsonObject"
+        - type: object
+          properties:
+            "type":
+              type: string
+              enum:
+                - Point
+                - MultiPoint
+                - LineString
+                - MultiLineString
+                - Polygon
+                - MultiPolygon
+                - GeometryCollection
+          required:
+            - type
+          discriminator:
+            propertyName: type
+    GeometryElement:
+      description: Abstract type for all GeoJSON 'Geometry' objects except GeometryCollection
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3"
+      allOf:
+        - $ref: "#/components/schemas/Geometry"
+        - type: object
+          properties:
+            "type":
+              type: string
+              enum:
+                - Point
+                - MultiPoint
+                - LineString
+                - MultiLineString
+                - Polygon
+                - MultiPolygon
+          required:
+            - type
+          discriminator:
+            propertyName: type
+    Feature:
+      description: GeoJSON Feature object
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.2"
+      allOf:
+        - $ref: "#/components/schemas/GeoJsonObject"
+        - type: object
+          required:
+            - geometry
+            - properties
+          properties:
+            "geometry":
+              allOf:
+                - nullable: true
+                - $ref: "#/components/schemas/Geometry"
+            "properties":
+              type: object
+              nullable: true
+            "id":
+              oneOf:
+                - type: number
+                - type: string
+    FeatureCollection:
+      description: GeoJSon 'FeatureCollection' object
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.3"
+      allOf:
+        - $ref: "#/components/schemas/GeoJsonObject"
+        - type: object
+          required:
+            - features
+          properties:
+            "features":
+              type: array
+              items:
+                $ref: "#/components/schemas/Feature"
     Position:
       description: A [lat, lon] array (in this order because it comes from the GPS).
       externalDocs:
@@ -390,53 +488,141 @@ components:
         minimum: -90
         maximum: 180
       example: [55.5, 37.5432]
-    LineString:
-      description: A GeoJSON LineString object
+    LineStringCoordinates:
+      description: GeoJSON fundamental geometry construct, array of two or more positions.
       externalDocs:
         url: "https://tools.ietf.org/html/rfc7946#section-3.1.4"
-      type: object
-      properties:
-        "type":
-          type: string
-          enum:
-            - LineString
-        coordinates:
-          type: array
-          minItems: 2
-          items:
-            $ref: "#/components/schemas/Position"
+      type: array
+      items:
+        $ref: "#/components/schemas/Position"
+      minItems: 2
+    LinearRing:
+      description: >
+        A linear ring is a closed LineString with four or more positions.
+
+        The first and last positions are equivalent, and they MUST contain
+        identical values; their representation SHOULD also be identical.
+
+        A linear ring is the boundary of a surface or the boundary of a hole in
+        a surface.
+
+        A linear ring MUST follow the right-hand rule with respect to the area
+        it bounds, i.e., exterior rings are counterclockwise, and holes are
+        clockwise.
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.1.6"
+      type: array
+      items:
+        $ref: "#/components/schemas/Position"
+      minItems: 4
     Point:
-      description: A GeoJSON Point object
+      description: GeoJSon geometry
       externalDocs:
         url: "https://tools.ietf.org/html/rfc7946#section-3.1.2"
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-            - Point
-        coordinates:
-          $ref: "#/components/schemas/Position"
-    Feature:
-      description: A GeoJSON Feature object
+      allOf:
+        - $ref: "#/components/schemas/GeometryElement"
+        - type: object
+          required:
+            - type
+            - coordinates
+          properties:
+            "type":
+              type: "string"
+              enum: [Point]
+            "coordinates":
+              $ref: "#/components/schemas/Position"
+    MultiPoint:
+      description: GeoJSon geometry
       externalDocs:
-        url: "https://tools.ietf.org/html/rfc7946#section-3.2"
+        url: "https://tools.ietf.org/html/rfc7946#section-3.1.3"
+      allOf:
+        - $ref: "#/components/schemas/GeometryElement"
+        - type: object
+          required:
+            - coordinates
+          properties:
+            "coordinates":
+              type: array
+              items:
+                $ref: "#/components/schemas/Position"
+    LineString:
+      description: GeoJSon geometry
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.1.4"
+      allOf:
+        - $ref: "#/components/schemas/GeometryElement"
+        - type: object
+          required:
+            - coordinates
+          properties:
+            "coordinates":
+              $ref: "#/components/schemas/LineStringCoordinates"
+    MultiLineString:
+      description: GeoJSon geometry
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.1.5"
+      allOf:
+        - $ref: "#/components/schemas/GeometryElement"
+        - type: object
+          required:
+            - coordinates
+          properties:
+            "coordinates":
+              type: array
+              items:
+                $ref: "#/components/schemas/LineStringCoordinates"
+    Polygon:
+      description: GeoJSon geometry
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.1.6"
+      allOf:
+        - $ref: "#/components/schemas/GeometryElement"
+        - type: object
+          required:
+            - coordinates
+          properties:
+            "coordinates":
+              type: array
+              items:
+                $ref: "#/components/schemas/LinearRing"
+    MultiPolygon:
+      description: GeoJSon geometry
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.1.7"
+      allOf:
+        - $ref: "#/components/schemas/GeometryElement"
+        - type: object
+          required:
+            - coordinates
+          properties:
+            "coordinates":
+              type: array
+              items:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinearRing"
+    GeometryCollection:
       type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/UUID"
-        geometry:
-          oneOf:
-            - $ref: "#/components/schemas/Point"
-            - $ref: "#/components/schemas/LineString"
-          discriminator:
-            propertyName: geometryType
-        properties:
-          type: object
-          nullable: true
-      required:
-        - geometry
-        - properties
+      description: >
+        GeoJSon geometry collection
+
+        GeometryCollections composed of a single part or a number of parts of a
+        single type SHOULD be avoided when that single part or a single object
+        of multipart type (MultiPoint, MultiLineString, or MultiPolygon) could
+        be used instead.
+      externalDocs:
+        url: "https://tools.ietf.org/html/rfc7946#section-3.1.8"
+      allOf:
+        - $ref: "#/components/schemas/Geometry"
+        - type: object
+          required:
+            - geometries
+          properties:
+            "geometries":
+              type: array
+              items:
+                $ref: "#/components/schemas/GeometryElement"
+              minItems: 0
   parameters:
     routeID:
       name: route_id
@@ -459,7 +645,7 @@ components:
       schema:
         type: string
         format: latlon
-        pattern: '^\s*-?\d{1,2}(\.\d+)?,\s?-?\d{1,3}(\.\d+)?\s*\Z'
+        pattern: '^\s*-?\d{1,2}(\.\d+)?,\s?-?\d{1,3}(\.\d+)?\s*$'
       example: "55.532,37.3433"
   responses:
     RouteNotFound:
