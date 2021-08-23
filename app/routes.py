@@ -117,7 +117,7 @@ def directions():
     with_alternatives = request.json.get('alternatives', True) and len(positions) == 2
     with_handles = request.json.get('handles', True)
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
-    start, finish = Point(positions[0]), Point(positions[1])
+    start, finish = Point(positions[0]), Point(positions[-1])
     # Reproject them to be used with Shapely (leave the spherical versions to save to the DB later)
     start_projected, finish_projected = transform(start), transform(finish)
     # Order intermediate positions along the route
