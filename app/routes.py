@@ -100,7 +100,7 @@ def suggest_pickup(route_id, position):
             radius = passenger_start_projected.distance(transform(Point(nearest_point)))
         return {
             'point': nearest_point,
-            'radius': round(radius, 2),
+            'radius': max(round(radius, 2), 500),
             'distance': passenger_route['distance']
         }
     except IndexError:
