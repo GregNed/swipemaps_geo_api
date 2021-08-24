@@ -7,7 +7,7 @@ from sqlalchemy import func
 from shapely.geometry import Point, LineString, MultiPoint
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
-from flask import request
+from flask import request, abort
 from geoalchemy2.shape import to_shape
 from openrouteservice.exceptions import ApiError
 
@@ -36,14 +36,17 @@ def healthcheck():
 
 def get_pickup_point(route_id):
     point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).pickup_point
-    return list(to_shape(point.geog).coords[0]) if point else (f'Route {route_id} has no pick-up point', 404)
+    if point:
+        return list(to_shape(point.geog).coords[0])
+    else:
+        abort(404, f'Route {route_id} has no pick-up point')
 
 
 def post_pickup_point(route_id):
     geog = Point(request.json['position'][::-1]).wkt
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
     if route.profile == 'driving-car':
-        return 'Only passenger routes can have pick-up points', 400
+        abort(400, 'Only passenger routes can have pick-up points')
     point = PickupPoint.query.filter(PickupPoint.route_id == route_id).first()
     if point:
         point.geog = geog
@@ -113,7 +116,7 @@ def directions():
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
     if len(set(str(position) for position in positions)) != len(positions):
-        return 'Request contains duplicate positions', 400
+        abort('Request contains duplicate positions', 400)
     with_alternatives = request.json.get('alternatives', True) and len(positions) == 2
     with_handles = request.json.get('handles', True)
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
@@ -267,12 +270,12 @@ def delete_discarded_routes(route_id, user_id):
     try:
         count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
         if count == 0:
-            return 'User and route combination not found', 404
+            abort(404, 'User and route combination not found')
         Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).trip_id = trip_id
         db.session.commit()
     except sqlalchemy.exc.IntegrityError as e:
         db.session.rollback()
-        return 'Such trip id already exists in the database', 400
+        return (400, 'Such trip id already exists in the database')
     except Exception as e:
         db.session.rollback()
         return e, 500
