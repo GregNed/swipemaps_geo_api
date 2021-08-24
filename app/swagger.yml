@@ -234,8 +234,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Feature"
-                geometryType: LineString
+                type: array
+                items:
+                  $ref: "#/components/schemas/UUID"
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/suggest_pickup":
