@@ -81,11 +81,20 @@ paths:
                 type: object
                 properties:
                   routes:
-                    $ref: "#/components/schemas/FeatureCollection"
+                    oneOf:
+                      - $ref: "#/components/schemas/FeatureCollection"
+                      - type: array
+                        maxItems: 0
                   prepared_routes:
-                    $ref: "#/components/schemas/FeatureCollection"
+                    oneOf:
+                      - $ref: "#/components/schemas/FeatureCollection"
+                      - type: array
+                        maxItems: 0
                   handles:
-                    $ref: "#/components/schemas/FeatureCollection"
+                    oneOf:
+                      - $ref: "#/components/schemas/FeatureCollection"
+                      - type: array
+                        maxItems: 0
   "/routes/{route_id}":
     parameters:
       - $ref: "#/components/parameters/routeID"
