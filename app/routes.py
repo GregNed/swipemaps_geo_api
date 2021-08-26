@@ -12,7 +12,7 @@ from geoalchemy2.shape import to_shape
 from openrouteservice.exceptions import ApiError
 
 from app import app, db, ors
-from app.models import Route, PickupPoint
+from app.models import DropoffPoint, Route, PickupPoint
 
 
 POINT_PROXIMITY_THRESHOLD = 1000
@@ -52,6 +52,29 @@ def post_pickup_point(route_id):
         point.geog = geog
     else:
         point = PickupPoint(id=uuid4(), geog=geog, route_id=route_id)
+        db.session.add(point)
+    db.session.commit()
+    return point.id, 201
+
+
+def get_dropoff_point(route_id):
+    point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).dropoff_point
+    if point:
+        return list(to_shape(point.geog).coords[0])
+    else:
+        abort(404, f'Route {route_id} has no drop-off point')
+
+
+def post_dropoff_point(route_id):
+    geog = Point(request.json['position'][::-1]).wkt
+    route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+    if route.profile == 'driving-car':
+        abort(400, 'Only passenger routes can have drop-off points')
+    point = DropoffPoint.query.filter(DropoffPoint.route_id == route_id).first()
+    if point:
+        point.geog = geog
+    else:
+        point = DropoffPoint(id=uuid4(), geog=geog, route_id=route_id)
         db.session.add(point)
     db.session.commit()
     return point.id, 201

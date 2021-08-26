@@ -317,6 +317,48 @@ paths:
           description: Bad request, e.g. duplicate points or invalid parameters
         500:
           description: Server error. Often, an ORS error that may actually be cause by a bad request
+  "/routes/{route_id}/dropoff":
+    parameters:
+      - $ref: "#/components/parameters/routeID"
+    get:
+      summary: Get drop-off point
+      description: Retrieve a drop-off point from the database using it's route's ID
+      operationId: app.routes.get_dropoff_point
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Position"
+        404:
+          $ref: "#/components/responses/DropoffPointNotFound"
+    post:
+      summary: Save a drop-off point
+      description: Save a passenger drop-off point with a reference to their route
+      operationId: app.routes.post_dropoff_point
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                position:
+                  $ref: "#/components/schemas/Position"
+              required:
+                - position
+              additionalProperties: false
+      responses:
+        201:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UUID"
+        400:
+          description: Bad request
+        500:
+          description: Server error
   "/suggest":
     get:
       summary: Find addresses or POIs that match the text
@@ -662,6 +704,8 @@ components:
       description: "No such route in the database :-("
     PickupPointNotFound:
       description: "No such route in the database, or it has no pick-up point :-("
+    DropoffPointNotFound:
+      description: "No such route in the database, or it has no drop-off point :-("
   # securitySchemes:
   #   BasicAuth:
   #     type: http
