@@ -241,6 +241,8 @@ def directions():
             routes = ors.directions(positions, request.json['profile'], with_alternatives)
         except ApiError as e:
             abort(500, str(e))
+        except Exception as e:
+            abort(500, str(e))
         # Save routes to DB
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
@@ -258,8 +260,6 @@ def directions():
             try:
                 routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], request.json['profile'])
             except ApiError as e:
-                abort(500, str(e))
-            except Exception as e:
                 abort(500, str(e))
             routes_last_parts = [route['geometry'] for route in routes_last_parts]
             handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
