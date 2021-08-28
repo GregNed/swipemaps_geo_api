@@ -192,7 +192,7 @@ def directions():
                 tail = ors.directions([positions[0], nearest_to_start_4326], request.json['profile'])[0]
                 head = ors.directions([nearest_to_finish_4326, positions[-1]], request.json['profile'])[0]
             except ApiError as e:
-                return abort(500, str(e))
+                abort(500, str(e))
             for part in (tail, head):
                 part = empty_route if len(part['geometry']) < 2 else part
             tail_geom, head_geom = [transform(LineString(part['geometry']).simplify(0)) for part in (tail, head)]
@@ -240,7 +240,7 @@ def directions():
         try:
             routes = ors.directions(positions, request.json['profile'], with_alternatives)
         except ApiError as e:
-            return abort(500, str(e))
+            abort(500, str(e))
         # Save routes to DB
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
@@ -258,7 +258,9 @@ def directions():
             try:
                 routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], request.json['profile'])
             except ApiError as e:
-                return abort(500, str(e))
+                abort(500, str(e))
+            except Exception as e:
+                abort(500, str(e))
             routes_last_parts = [route['geometry'] for route in routes_last_parts]
             handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
             handles = [Point(handle.coords[0]) for handle in handles]
@@ -300,7 +302,7 @@ def delete_discarded_routes(route_id, user_id):
         abort(400, 'Such trip id already exists in the database')
     except Exception as e:
         db.session.rollback()
-        return abort(500, str(e))
+        abort(500, str(e))
 
 
 def get_candidates(route_id):
