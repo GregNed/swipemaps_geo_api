@@ -139,7 +139,7 @@ def directions():
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
     if len(set(str(position) for position in positions)) != len(positions):
-        abort('Request contains duplicate positions', 400)
+        abort(400, 'Request contains duplicate positions')
     with_alternatives = request.json.get('alternatives', True) and len(positions) == 2
     with_handles = request.json.get('handles', True)
     # Start & end will mostly be manipulated via Shapely, so turn them into shapes
