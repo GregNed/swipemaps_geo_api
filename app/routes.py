@@ -192,7 +192,7 @@ def directions():
                 tail = ors.directions([positions[0], nearest_to_start_4326], request.json['profile'])[0]
                 head = ors.directions([nearest_to_finish_4326, positions[-1]], request.json['profile'])[0]
             except ApiError as e:
-                return str(e), 500
+                return abort(500, str(e))
             for part in (tail, head):
                 part = empty_route if len(part['geometry']) < 2 else part
             tail_geom, head_geom = [transform(LineString(part['geometry']).simplify(0)) for part in (tail, head)]
@@ -240,7 +240,7 @@ def directions():
         try:
             routes = ors.directions(positions, request.json['profile'], with_alternatives)
         except ApiError as e:
-            return str(e), 500
+            return abort(500, str(e))
         # Save routes to DB
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
@@ -258,7 +258,7 @@ def directions():
             try:
                 routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], request.json['profile'])
             except ApiError as e:
-                return str(e), 500
+                return abort(500, str(e))
             routes_last_parts = [route['geometry'] for route in routes_last_parts]
             handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
             handles = [Point(handle.coords[0]) for handle in handles]
@@ -289,19 +289,18 @@ def get_route(route_id, full=True):
 
 
 def delete_discarded_routes(route_id, user_id):
-    trip_id = request.json['trip_id']
+    count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
+    if count == 0:
+        abort(404, 'User and route combination not found')
+    Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).trip_id = request.json['trip_id']
     try:
-        count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
-        if count == 0:
-            abort(404, 'User and route combination not found')
-        Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).trip_id = trip_id
         db.session.commit()
     except sqlalchemy.exc.IntegrityError as e:
         db.session.rollback()
-        return (400, 'Such trip id already exists in the database')
+        abort(400, 'Such trip id already exists in the database')
     except Exception as e:
         db.session.rollback()
-        return e, 500
+        return abort(500, str(e))
 
 
 def get_candidates(route_id):
@@ -343,16 +342,29 @@ def get_candidates(route_id):
 
 
 def geocode(text):
-    return ors.geocode(text) or 'Nothing found; try a different text', 404
+    result = ors.geocode(text)
+    if result:
+        return result
+    else:
+        abort(404, 'Nothing found; try a different text')
 
 
 def reverse_geocode(position):
-    position = map(float, position.split(','))
-    return ors.reverse_geocode(position) or ('Nothing found', 404)
+    address = ors.reverse_geocode(map(float, position.split(',')))
+    if address:
+        return address
+    else:
+        abort(404, 'Nothing found')
 
 
 def suggest(text):
     result = ors.suggest(text)
-    return FeatureCollection(
-        [Feature(geometry=feature['geometry'], properties=feature['properties']) for feature in result]
-    ) if result else 'Nothing found; try a different text', 404
+    if result:
+        return FeatureCollection(
+            [Feature(
+                geometry=feature['geometry'],
+                properties=feature['properties']
+            ) for feature in result]
+        )
+    else:
+        abort(404, 'Nothing found; try a different text')
