@@ -30,7 +30,20 @@ def transform(shape, to_wgs84=False):
 
 
 def healthcheck():
-    return {'status': 'OK'}
+    response = {service: 'ok' for service in ('server', 'postgres', 'ors', 'pelias')}
+    try:
+        Route.query.first()
+    except sqlalchemy.exc.OperationalError:
+        response['postgres'] = 'unavailable'
+    try:
+        ors.directions([[37.619188, 55.759128], [37.626247, 55.759426]], 'driving-car')
+    except:
+        response['ors'] = 'unavailable'
+    try:
+        ors.geocode('Тверская 1')
+    except:
+        response['pelias'] = 'unavailable'
+    return response
 
 
 def get_pickup_point(route_id):
