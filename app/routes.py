@@ -152,7 +152,7 @@ def route_walking(route_id):
     })
 
 
-def directions():
+def routes():
     """"""
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
