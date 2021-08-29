@@ -29,7 +29,7 @@ paths:
                     description: OK if working
   "/directions":
     post:
-      operationId: app.routes.route
+      operationId: app.routes.directions
       summary: Routing
       description: |
         Build a car or walking route through the specified locations, and save it to the database

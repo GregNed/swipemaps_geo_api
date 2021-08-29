@@ -237,7 +237,6 @@ def directions():
         routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     else:
         routes = ors.directions(positions, request.json['profile'], with_alternatives)
-        # return routes
         # Save routes to DB
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
