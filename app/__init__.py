@@ -22,6 +22,6 @@ migrate = Migrate(app, db)
 connexion_app.add_api(
     'swagger.yml',
     strict_validation=True,
-    validate_responses=os.getenv("FLASK_ENV", 'development') == 'development',
+    validate_responses=os.getenv('FLASK_ENV', 'development') in ('development', 'testing'),
     arguments={}
 )
