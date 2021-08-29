@@ -29,10 +29,10 @@ paths:
                     description: OK if working
   "/directions":
     post:
-      operationId: app.routes.directions
-      summary: Directions
+      operationId: app.routes.route
+      summary: Routing
       description: |
-        Build a car or walking route using the specified locations or other routes, and save it to the database
+        Build a car or walking route through the specified locations, and save it to the database
       requestBody:
         content:
           application/json:
@@ -41,6 +41,7 @@ paths:
               properties:
                 positions:
                   type: array
+                  minItems: 2
                   items:
                     $ref: "#/components/schemas/Position"
                 profile:
@@ -50,10 +51,6 @@ paths:
                     - "driving-car"
                     - "foot-walking"
                 user_id:
-                  $ref: "#/components/schemas/UUID"
-                from_route_id:
-                  $ref: "#/components/schemas/UUID"
-                to_route_id:
                   $ref: "#/components/schemas/UUID"
                 make_route:
                   description: In some cases no route is actually needed, the goal is just to save to endpoints
@@ -70,6 +67,7 @@ paths:
               required:
                 - profile
                 - user_id
+                - positions
               additionalProperties: false
         required: true
       responses:
@@ -123,6 +121,44 @@ paths:
                   route:
                     $ref: "#/components/schemas/Feature"
                     geometryType: LineString
+        404:
+          $ref: "#/components/responses/RouteNotFound"
+    post:
+      operationId: app.routes.route_walking
+      summary: Make walking route
+      description: |
+        Build a pedestrian route using from the specified location to another route or vice versa
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                position:
+                  $ref: "#/components/schemas/Position"
+                user_id:
+                  $ref: "#/components/schemas/UUID"
+                to_or_from:
+                  type: string
+                  description: From or to the specified `route`
+                  enum:
+                    - to
+                    - from
+              required:
+                - position
+                - user_id
+                - to_or_from
+              additionalProperties: false
+        required: true
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feature"
+        204:
+          description: The specified location is already on the route
         404:
           $ref: "#/components/responses/RouteNotFound"
     put:

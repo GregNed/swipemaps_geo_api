@@ -1,6 +1,8 @@
 import os
+
 import requests
 import openrouteservice as ors
+from flask import abort
 
 
 # Connection constants
@@ -26,13 +28,22 @@ def directions(positions: list[float], profile: str, alternatives: bool = False,
             'share_factor': 0.8
         } if alternatives else False
     }
-    res = client.directions(positions, **args)
-    return [{
-        'geometry': route['geometry']['coordinates'] if geometry else {},
-        # Distance & duration are missing for single-segment routes apparently
-        'distance': route['properties']['summary']['distance'],
-        'duration': route['properties']['summary']['duration']
-    } for route in res['features']]
+    try:
+        res = client.directions(positions, **args)
+        # return res
+        routes = [{
+            'geometry': route['geometry']['coordinates'] if geometry else {},
+            # Distance & duration are missing for single-segment routes apparently
+            'distance': route['properties']['summary']['distance'],
+            'duration': route['properties']['summary']['duration']
+        } for route in res['features']]
+    except KeyError:
+        return None, 204
+    except Exception as e:
+        abort(500, str(e))
+    if not routes:
+        abort(500, 'ORS failed to route between the requested locations')
+    return routes
 
 
 def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
