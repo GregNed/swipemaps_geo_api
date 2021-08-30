@@ -14,7 +14,7 @@ def is_latlon(value):
 
 connexion_app = connexion.App(__name__)
 app = connexion_app.app
-env = os.getenv("FLASK_ENV", 'development')
+env = os.getenv('FLASK_ENV', 'development')
 app.config.from_object(f'app.config.{env.capitalize()}Config')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -22,6 +22,6 @@ migrate = Migrate(app, db)
 connexion_app.add_api(
     'swagger.yml',
     strict_validation=True,
-    validate_responses=os.getenv('FLASK_ENV', 'development') in ('development', 'testing'),
+    validate_responses=app.config['VALIDATE_RESPONSES'],
     arguments={}
 )
