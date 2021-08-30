@@ -4,7 +4,7 @@ import requests
 import openrouteservice as ors
 from flask import abort
 
-from . import config
+from . import app
 
 
 # Connection constants
@@ -25,7 +25,7 @@ def directions(positions: list[list[float]], profile: str, alternatives: bool = 
         'geometry': geometry,
         'format': 'geojson' if geometry else 'json',
         'alternative_routes': {
-            'target_count': config.ORS_MAX_ALTERNATIVES,
+            'target_count': app.config['ORS_MAX_ALTERNATIVES'],
             'weight_factor': 1.4,
             'share_factor': 0.8
         } if alternatives else False

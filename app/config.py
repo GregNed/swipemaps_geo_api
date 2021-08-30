@@ -8,12 +8,15 @@ class Config:
     SECRET_KEY = os.environ['SECRET_KEY']
     SQLALCHEMY_DATABASE_URI = os.environ['DATABASE_URL']
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    VALIDATE_RESPONSES = True
     # Business logic parameters
     CANDIDATE_DISTANCE_LIMIT = 30000
+    ORS_MAX_ALTERNATIVES = 2
 
 
 class ProductionConfig(Config):
     DEBUG = False
+    VALIDATE_RESPONSES = False
 
 
 class StagingConfig(Config):
