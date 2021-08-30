@@ -4,6 +4,8 @@ import requests
 import openrouteservice as ors
 from flask import abort
 
+from . import config
+
 
 # Connection constants
 API_KEY = os.getenv('ORS_API_KEY')
@@ -14,7 +16,7 @@ MOSCOW_CENTER = [55.754801, 37.622311]
 MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
 
 
-def directions(positions: list[float], profile: str, alternatives: bool = False, geometry: bool = True) -> list[dict]:
+def directions(positions: list[list[float]], profile: str, alternatives: bool = False, geometry: bool = True) -> list[dict]:
     """"""
     client = ors.Client(base_url=ORS_ENDPOINT)
     args = {
@@ -23,27 +25,28 @@ def directions(positions: list[float], profile: str, alternatives: bool = False,
         'geometry': geometry,
         'format': 'geojson' if geometry else 'json',
         'alternative_routes': {
-            'target_count': 2,
+            'target_count': config.ORS_MAX_ALTERNATIVES,
             'weight_factor': 1.4,
             'share_factor': 0.8
         } if alternatives else False
     }
     try:
         res = client.directions(positions, **args)
-        # return res
+    except Exception as e:
+        abort(500, str(e))
+    try:
         routes = [{
-            'geometry': route['geometry']['coordinates'] if geometry else {},
-            # Distance & duration are missing for single-segment routes apparently
+            'geometry': route['geometry']['coordinates'],
             'distance': route['properties']['summary']['distance'],
             'duration': route['properties']['summary']['duration']
         } for route in res['features']]
     except KeyError:
-        return None, 204
-    except Exception as e:
-        abort(500, str(e))
-    if not routes:
-        abort(500, 'ORS failed to route between the requested locations')
-    return routes
+        routes = [{
+            'geometry': positions,
+            'distance': 0,
+            'duration': 0
+        } for route in res['features']]
+    return routes or abort(500, 'ORS failed to route between the requested locations')
 
 
 def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):

@@ -157,8 +157,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Feature"
-        204:
-          description: The specified location is already on the route
         404:
           $ref: "#/components/responses/RouteNotFound"
     put:
