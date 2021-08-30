@@ -43,8 +43,8 @@ def directions(positions: list[list[float]], profile: str, alternatives: bool = 
     except KeyError:
         routes = [{
             'geometry': positions,
-            'distance': 0,
-            'duration': 0
+            'distance': 0.0,
+            'duration': 0.0
         } for route in res['features']]
     return routes or abort(500, 'ORS failed to route between the requested locations')
 
