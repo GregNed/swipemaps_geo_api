@@ -245,7 +245,7 @@ def routes():
             id=route_id,
             user_id=request.json['user_id'],
             profile=request.json['profile'],
-            geog=LineString([start, finish])
+            geog=LineString([start, finish]).wkt
         ))
         routes = FeatureCollection([Feature(id=route_id, geometry=LineString([start, finish]))])
     else:
