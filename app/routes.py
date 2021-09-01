@@ -59,7 +59,7 @@ def distance():
 
 def get_route_start_or_finish(route_id, point):
     index = 0 if point == 'start' else -1
-    route = to_shape(Route.query.get_or_404(route_id).geog)
+    route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geog)
     return list(route.coords[index])  # returning a tuple, as provided by Shapely, will raise an error
 
 
