@@ -63,7 +63,8 @@ paths:
       operationId: app.routes.routes
       summary: Routing
       description: |
-        Build a car or walking route through the specified locations, and save it to the database
+        Build a car or walking route through the specified locations, and save it to the database.
+        If `alternatives = true` (default), at most {{config.ORS_MAX_ALTERNATIVES}} alternatives are returned.
       requestBody:
         content:
           application/json:
@@ -424,6 +425,26 @@ paths:
           description: Bad request
         500:
           description: Server error
+  "/routes/{route_id}/is_passenger_arrived":
+    parameters:
+      - $ref: "#/components/parameters/routeID"
+      - $ref: "#/components/parameters/LatLon"
+    get:
+      summary: Is Passenger Arrived
+      description: |
+        Check whether the passenger with the given route has arrived.
+        A passenger is considered to have arrived if the distance between the supplied driver's position
+        and the passenger walking route is less than {{config.DROPOFF_RADIUS}}
+      operationId: app.routes.is_passenger_arrived
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: boolean
+        404:
+          $ref: "#/components/responses/RouteNotFound"
   "/suggest":
     get:
       summary: Find addresses or POIs that match the text

@@ -57,6 +57,12 @@ def distance():
     return round(spherical_distance(*request.json['positions']))
 
 
+def is_passenger_arrived(route_id, position):
+    route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geog)
+    driver_position = Point(map(float, position.split(',')[::-1]))
+    return transform(driver_position).distance(transform(route)) < app.config['DROPOFF_RADIUS']
+
+
 def get_pickup_point(route_id):
     point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).pickup_point
     if not point:

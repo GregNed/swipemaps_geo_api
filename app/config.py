@@ -12,6 +12,7 @@ class Config:
     # Business logic parameters
     CANDIDATE_DISTANCE_LIMIT = 30000
     ORS_MAX_ALTERNATIVES = 2
+    DROPOFF_RADIUS = 500  # in meters
 
 
 class ProductionConfig(Config):

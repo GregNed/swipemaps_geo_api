@@ -23,5 +23,5 @@ connexion_app.add_api(
     'swagger.yml',
     strict_validation=True,
     validate_responses=app.config['VALIDATE_RESPONSES'],
-    arguments={}
+    arguments={'config': app.config}
 )
