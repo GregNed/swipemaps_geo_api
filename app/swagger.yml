@@ -421,10 +421,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UUID"
-        400:
-          description: Bad request
-        500:
-          description: Server error
+  "/routes/{route_id}/{point}":
+    parameters:
+      - $ref: "#/components/parameters/routeID"
+      - name: point
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            - start
+            - finish
+    get:
+      summary: Get start or finish
+      description: Retrieve the first or last point of a route using it's ID
+      operationId: app.routes.get_route_start_or_finish
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Position"
+        404:
+          $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/is_passenger_arrived":
     parameters:
       - $ref: "#/components/parameters/routeID"

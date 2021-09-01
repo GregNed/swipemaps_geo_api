@@ -57,6 +57,12 @@ def distance():
     return round(spherical_distance(*request.json['positions']))
 
 
+def get_route_start_or_finish(route_id, point):
+    index = 0 if point == 'start' else -1
+    route = to_shape(Route.query.get_or_404(route_id).geog)
+    return list(route.coords[index])  # returning a tuple, as provided by Shapely, will raise an error
+
+
 def is_passenger_arrived(route_id, position):
     route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geog)
     driver_position = Point(map(float, position.split(',')[::-1]))
