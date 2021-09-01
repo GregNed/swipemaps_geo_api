@@ -24,9 +24,40 @@ paths:
               schema:
                 type: object
                 properties:
-                  status:
-                    type: string
-                    description: OK if working
+                  server:
+                    $ref: "#/components/schemas/ServiceStateString"
+                  postgres:
+                    $ref: "#/components/schemas/ServiceStateString"
+                  ors:
+                    $ref: "#/components/schemas/ServiceStateString"
+                  pelias:
+                    $ref: "#/components/schemas/ServiceStateString"
+  "/distance":
+    post:
+      operationId: app.routes.distance
+      summary: Distance
+      description: Calculate distance between two geograpical coordinates on a sphere
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                positions:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    $ref: "#/components/schemas/Position"
+              required: [positions]
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: integer
+                minimum: 0
   "/routes":
     post:
       operationId: app.routes.routes
@@ -456,6 +487,11 @@ components:
       type: string
       format: uuid
       pattern: "^[a-fA-F0-9]{8}-?[a-fA-F0-9]{4}-?4[a-fA-F0-9]{3}-?[89ab][a-fA-F0-9]{3}-?[a-fA-F0-9]{12}$"
+    ServiceStateString:
+      type: string
+      enum:
+        - ok
+        - unavailable
     GeoJsonObject:
       description: Base GeoJSON object
       externalDocs:

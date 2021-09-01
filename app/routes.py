@@ -1,3 +1,4 @@
+import math
 from uuid import uuid4
 
 import numpy as np
@@ -44,6 +45,16 @@ def healthcheck():
     except:
         response['pelias'] = 'unavailable'
     return response
+
+
+def spherical_distance(from_, to_):
+    from_lat, from_lon, to_lat, to_lon = map(math.radians, [*from_, *to_])
+    a = math.sin((from_lat - to_lat)/2)**2 + math.cos(from_lat) * math.cos(to_lat) * math.sin((from_lon-to_lon)/2)**2
+    return 6371 * 2 * math.asin(math.sqrt(a)) * 1000  # in meters
+
+
+def distance():
+    return round(spherical_distance(*request.json['positions']))
 
 
 def get_pickup_point(route_id):
