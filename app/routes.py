@@ -15,8 +15,6 @@ from app import app, db, ors
 from app.models import DropoffPoint, Route, PickupPoint
 
 
-POINT_PROXIMITY_THRESHOLD = 1000
-MAX_PREPARED_ROUTES = 5
 TRANSFORM = pyproj.Transformer.from_crs(4326, 32637, always_xy=True)
 ROUTE_NOT_FOUND_MESSAGE = 'No such route in the database :-('
 
@@ -212,10 +210,10 @@ def routes():
         similar_routes = [
             {'geometry': to_shape(route.geog), 'distance': route.distance, 'duration': route.duration}
             for route in past_routes
-            if transform(Point(to_shape(route.geog).coords[0])).distance(start_projected) < POINT_PROXIMITY_THRESHOLD
-            and transform(Point(to_shape(route.geog).coords[0])).distance(finish_projected) < POINT_PROXIMITY_THRESHOLD
+            if transform(Point(to_shape(route.geog).coords[0])).distance(start_projected) < app.config['POINT_PROXIMITY_THRESHOLD']
+            and transform(Point(to_shape(route.geog).coords[0])).distance(finish_projected) < app.config['POINT_PROXIMITY_THRESHOLD']
         ]
-        for route in similar_routes[:MAX_PREPARED_ROUTES]:
+        for route in similar_routes[:app.config['MAX_PREPARED_ROUTES']]:
             route_geom = transform(LineString(route['geometry']))
             # Get the closest points on the past route to counterparts requested by the user
             nearest_to_start, _ = nearest_points(route_geom, start_projected)
