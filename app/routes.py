@@ -310,13 +310,10 @@ def routes():
     }
 
 
-def get_route(route_id, full=True):
+def get_route(route_id):
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    route_geom = to_shape(route.geog)
-    if not full:
-        route_geom = LineString([route.coords[0], route.coords[-1]])
     properties = {attr: getattr(route, attr) for attr in ('trip_id', 'user_id', 'profile', 'distance', 'duration')}
-    return {'route': Feature(route_id, route_geom, properties), 'full': full}
+    return Feature(route_id, to_shape(route.geog), properties)
 
 
 def delete_discarded_routes(route_id, user_id):

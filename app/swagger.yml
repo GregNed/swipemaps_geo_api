@@ -132,27 +132,14 @@ paths:
       summary: Get Route
       description: Retrieve an existing route from the database
       operationId: app.routes.get_route
-      parameters:
-        - name: full
-          in: query
-          description: Whether to return the route's geometry, or just the endpoints
-          schema:
-            type: boolean
-            default: true
       responses:
         200:
           description: Success
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  full:
-                    type: boolean
-                    description: Whether the full route's geometry is returned or just the endpoints
-                  route:
-                    $ref: "#/components/schemas/Feature"
-                    geometryType: LineString
+                $ref: "#/components/schemas/Feature"
+                geometryType: LineString
         404:
           $ref: "#/components/responses/RouteNotFound"
     post:
