@@ -14,8 +14,8 @@ from geoalchemy2.shape import to_shape
 from app import app, db, ors
 from app.models import DropoffPoint, Route, PickupPoint
 
-
-TRANSFORM = pyproj.Transformer.from_crs(4326, 32637, always_xy=True)
+PROJECTION = 32637  # UTM
+TRANSFORM = pyproj.Transformer.from_crs(4326, PROJECTION, always_xy=True)
 ROUTE_NOT_FOUND_MESSAGE = 'No such route in the database :-('
 
 
@@ -204,60 +204,62 @@ def routes():
         positions.sort(key=lambda x: start_projected.distance(transform(Point(x))))
     # Check if there are similar routes in the user's history; if there are any, return them along w/ the new ones
     if with_alternatives:
+        # Prepare PostGIS functions for analysis
+        route_projected = func.ST_Transform(func.ST_GeomFromWKB(Route.geog, '4326'), PROJECTION)
+        route_start = func.ST_StartPoint(route_projected)
+        route_finish = func.ST_EndPoint(route_projected)
         # Get all the routes from the user's history
-        past_routes = Route.query.filter(Route.trip_id != None, Route.user_id == request.json['user_id']).all()
-        # Filter out those whose start & finish were close enough to the currently requested ones
-        similar_routes = [
-            {'geometry': to_shape(route.geog), 'distance': route.distance, 'duration': route.duration}
-            for route in past_routes
-            if transform(Point(to_shape(route.geog).coords[0])).distance(start_projected) < app.config['POINT_PROXIMITY_THRESHOLD']
-            and transform(Point(to_shape(route.geog).coords[0])).distance(finish_projected) < app.config['POINT_PROXIMITY_THRESHOLD']
-        ]
-        for route in similar_routes[:app.config['MAX_PREPARED_ROUTES']]:
-            route_geom = transform(LineString(route['geometry']))
+        past_routes = Route.query.filter(
+            Route.user_id == request.json['user_id'],
+            Route.trip_id != None,
+            func.ST_Distance(route_start, func.ST_GeomFromText(start_projected.wkt, PROJECTION))
+            < app.config['POINT_PROXIMITY_THRESHOLD'],
+            func.ST_Distance(route_finish, func.ST_GeomFromText(finish_projected.wkt, PROJECTION))
+            < app.config['POINT_PROXIMITY_THRESHOLD']
+        ).limit(app.config['MAX_PREPARED_ROUTES'])
+        for route in past_routes:
+            # Convert common part bc the other parts will be returned from ORS as dict
+            route = {
+                'geometry': transform(to_shape(route.geog)),
+                'distance': route.distance,
+                'duration': route.duration
+            }
             # Get the closest points on the past route to counterparts requested by the user
-            nearest_to_start, _ = nearest_points(route_geom, start_projected)
-            nearest_to_finish, _ = nearest_points(route_geom, finish_projected)
+            nearest_to_start, _ = nearest_points(route['geometry'], start_projected)
+            nearest_to_finish, _ = nearest_points(route['geometry'], finish_projected)
             # Reproject them back to WGS84 for the ORS
             nearest_to_start_4326 = transform(nearest_to_start, to_wgs84=True).coords[0]
             nearest_to_finish_4326 = transform(nearest_to_finish, to_wgs84=True).coords[0]
-            # Get the routes between the user's requested points and those closest to them on the past route
+            # Extract the relevant part of the past route
+            cut_point_distances = [route['geometry'].project(pt) for pt in (nearest_to_start, nearest_to_finish)]
+            route['geometry'] = substring(route['geometry'], *cut_point_distances)
             # A tail is from the start to the point closest to the start, a head - likewise but from the finish
-            empty_route = {'geometry': [], 'distance': 0, 'duration': 0}
             tail = ors.directions([positions[0], nearest_to_start_4326], request.json['profile'])[0]
             head = ors.directions([nearest_to_finish_4326, positions[-1]], request.json['profile'])[0]
+            parts_to_merge = [route]  # tail and head will get added if they prove non-empty
             for part in (tail, head):
-                part = empty_route if len(part['geometry']) < 2 else part
-            tail_geom, head_geom = [transform(LineString(part['geometry']).simplify(0)) for part in (tail, head)]
-            # Extract the relevant part of the past route
-            cut_point_distances = [route_geom.project(pt) for pt in (nearest_to_start, nearest_to_finish)]
-            common_part = substring(route_geom, *cut_point_distances)
-            # Remove duplicate segments
-            if tail['geometry']:
-                tail_snapped = LineString([
-                    snap(Point(coords), nearest_points(common_part, Point(coords))[0], 25)
-                    for coords in tail_geom.coords
+                try:
+                    part['geometry'] = transform(LineString(part['geometry']).simplify(0))
+                except ValueError:  # part['geometry'] contains < 2 positions
+                    continue
+                # Remove duplicate segments
+                part['geometry'] = LineString([
+                    snap(Point(coords), nearest_points(route['geometry'], Point(coords))[0], 25)
+                    for coords in part['geometry'].coords
                 ])
-                if tail_snapped.overlaps(common_part):
-                    tail_geom, common_part = tail_snapped.symmetric_difference(common_part)
-                elif tail_snapped.within(common_part):
-                    tail_geom = LineString()
-            if head['geometry']:
-                head_snapped = LineString([
-                    snap(Point(coords), nearest_points(common_part, Point(coords))[0], 25)
-                    for coords in head_geom.coords
-                ])
-                if head_snapped.overlaps(common_part):
-                    head_geom, common_part = head_snapped.symmetric_difference(common_part)
-                elif head_snapped.within(common_part):
-                    head_geom = LineString()
-            # Stitch them together
-            parts_to_merge = list(filter(bool, (tail_geom, common_part, head_geom)))
-            full_route = linemerge(unary_union(parts_to_merge)) if len(parts_to_merge) > 1 else common_part
+                # Remove overlapping parts
+                if part['geometry'].overlaps(route['geometry']) and not part['geometry'].within(route['geometry']):
+                    part['geometry'], route['geometry'] = part['geometry'].symmetric_difference(route['geometry'])
+                    parts_to_merge.append(part)  # is a proper part, add to list for merging
+            # Stitch the parts together if there is a tail or a head, or both
+            if len(parts_to_merge) > 1:
+                full_route = linemerge(unary_union([part['geometry'] for part in parts_to_merge]))
+            else:
+                full_route = route['geometry']
             prepared_routes.append({
                 'geometry': transform(full_route, to_wgs84=True).coords,
-                'distance': sum([part['distance'] for part in (route, tail, head)]),
-                'duration': sum([part['duration'] for part in (route, tail, head)])
+                'distance': sum(part['distance'] for part in parts_to_merge),
+                'duration': sum(part['duration'] for part in parts_to_merge)
             })
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
     if request.json.get('make_route') is False:
