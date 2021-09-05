@@ -1,8 +1,6 @@
-import math
 from uuid import uuid4
 
 import numpy as np
-import pyproj
 import sqlalchemy
 from sqlalchemy import func
 from shapely.geometry import Point, LineString, MultiPoint
@@ -13,19 +11,10 @@ from geoalchemy2.shape import to_shape
 
 from app import app, db, ors
 from app.models import DropoffPoint, Route, PickupPoint
+from app.helpers import transform, haversine, PROJECTION
 
-PROJECTION = 32637  # UTM
-TRANSFORM = pyproj.Transformer.from_crs(4326, PROJECTION, always_xy=True)
+
 ROUTE_NOT_FOUND_MESSAGE = 'No such route in the database :-('
-
-
-def transform(shape, to_wgs84=False):
-    if shape.is_empty:
-        return shape
-    geometry_type = type(shape)
-    direction = 'INVERSE' if to_wgs84 else 'FORWARD'
-    xx, yy = TRANSFORM.transform(*shape.xy, direction=direction)
-    return geometry_type(zip(xx.tolist(), yy.tolist()))
 
 
 def healthcheck():
@@ -45,14 +34,8 @@ def healthcheck():
     return response
 
 
-def spherical_distance(from_, to_):
-    from_lat, from_lon, to_lat, to_lon = map(math.radians, [*from_, *to_])
-    a = math.sin((from_lat - to_lat)/2)**2 + math.cos(from_lat) * math.cos(to_lat) * math.sin((from_lon-to_lon)/2)**2
-    return 6371 * 2 * math.asin(math.sqrt(a)) * 1000  # in meters
-
-
 def distance():
-    return round(spherical_distance(*request.json['positions']))
+    return round(haversine(*request.json['positions']))
 
 
 def get_route_start_or_finish(route_id, point):
