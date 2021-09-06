@@ -10,14 +10,6 @@ test:
       alias: ors
     - name: registry.gitlab.com/dangoclub/postgis
       alias: pg
-  only:
-    changes:
-      - .gitlab-ci.yml
-      - app.py
-      - api/*.py
-      - tests/*.py
-      - migrations/alembic.ini
-      - migrations/**/*.py
   script:
     - pip install -r requirements.txt
     - flask db upgrade
