@@ -32,6 +32,23 @@ paths:
                     $ref: "#/components/schemas/ServiceStateString"
                   pelias:
                     $ref: "#/components/schemas/ServiceStateString"
+  "/stops":
+    get:
+      parameters:
+        - name: bbox
+          in: query
+          schema:
+            type: string
+      operationId: app.routes.get_stops
+      summary: Stops
+      description: Get public transport stops for the specified area, or overall, if no area is specified
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureCollection"
   "/distance":
     post:
       operationId: app.routes.distance

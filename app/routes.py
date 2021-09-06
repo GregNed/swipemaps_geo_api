@@ -10,7 +10,7 @@ from flask import request, abort
 from geoalchemy2.shape import to_shape
 
 from app import app, db, ors
-from app.models import DropoffPoint, Route, PickupPoint
+from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop
 from app.helpers import transform, haversine, PROJECTION
 
 
@@ -32,6 +32,17 @@ def healthcheck():
     except:
         response['pelias'] = 'unavailable'
     return response
+
+
+def get_stops(bbox):
+    bbox = map(float, bbox.split(','))
+    if bbox:
+        stops = PublicTransportStop.query.filter(
+            func.ST_Intersects(PublicTransportStop.geom, func.ST_MakeEnvelope(*bbox, '4326'))
+        )
+    else:
+        stops = PublicTransportStop.query.all()
+    return FeatureCollection([Feature(stop.id, to_shape(stop.geom), {'name': stop.name}) for stop in stops])
 
 
 def distance():
