@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import UUID
-from geoalchemy2 import Geography
+from geoalchemy2 import Geography, Geometry
 
 from app import db
 
@@ -42,3 +42,13 @@ class DropoffPoint(db.Model):
 
     def __repr__(self):
         return f'<Dropoff point {self.id}>'
+
+
+class PublicTransportStop(db.Model):
+    """"""
+    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    name = db.Column(db.Text)
+    geom = db.Column(Geometry('Point', srid=4326), nullable=False)
+
+    def __repr__(self):
+        return f'<Stop {self.name}>'
