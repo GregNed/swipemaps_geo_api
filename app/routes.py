@@ -35,10 +35,13 @@ def healthcheck():
 
 
 def get_stops(bbox):
-    bbox = map(float, bbox.split(','))
     if bbox:
+        min_lat, min_lon, max_lat, max_lon = map(float, bbox.split(','))
         stops = PublicTransportStop.query.filter(
-            func.ST_Intersects(PublicTransportStop.geom, func.ST_MakeEnvelope(*bbox, '4326'))
+            func.ST_Intersects(
+                PublicTransportStop.geom,
+                func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, '4326')
+            )
         )
     else:
         stops = PublicTransportStop.query.all()
