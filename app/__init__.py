@@ -3,6 +3,7 @@ import os
 import connexion
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_marshmallow import Marshmallow
 from jsonschema import draft4_format_checker
 
 
@@ -19,9 +20,10 @@ app.config.from_object(f'app.config.{env.capitalize()}Config')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 # Must come last bc it jumps to init another module & will cause partial initialization
+ma = Marshmallow(connexion_app)
 connexion_app.add_api(
     'swagger.yml',
     strict_validation=True,
-    validate_responses=app.config['VALIDATE_RESPONSES'],
+    # validate_responses=app.config['VALIDATE_RESPONSES'],
     arguments={'config': app.config}
 )

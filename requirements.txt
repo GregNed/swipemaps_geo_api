@@ -1,9 +1,11 @@
 connexion[swagger-ui]==2.9.*
 Flask==1.1.*
+flask-marshmallow==0.14.*
 Flask-Migrate==3.0.*
 Flask-SQLAlchemy==2.5.*
 GeoAlchemy2==0.8.*
 geojson==2.5.*
+marshmallow-sqlalchemy==0.26.*
 numpy==1.21.*
 openrouteservice==2.3.*
 psycopg2-binary==2.8.*

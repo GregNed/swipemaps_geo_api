@@ -11,7 +11,7 @@ from geoalchemy2.shape import to_shape
 
 from app import app, db, ors
 from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop
-from app.helpers import transform, haversine, PROJECTION
+from app.helpers import transform, haversine, route_to_feature, PROJECTION
 
 
 ROUTE_NOT_FOUND_MESSAGE = 'No such route in the database :-('
@@ -45,7 +45,9 @@ def get_stops(bbox):
         )
     else:
         stops = PublicTransportStop.query.all()
-    return FeatureCollection([Feature(stop.id, to_shape(stop.geom), {'name': stop.name}) for stop in stops])
+    return FeatureCollection([
+        Feature(stop.id, to_shape(stop.geom), {'name': stop.name}) for stop in stops
+    ])
 
 
 def distance():
@@ -309,12 +311,15 @@ def routes():
 
 def get_route(route_id):
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    properties = {attr: getattr(route, attr) for attr in ('trip_id', 'user_id', 'profile', 'distance', 'duration')}
-    return Feature(route_id, to_shape(route.geog), properties)
+    return route_to_feature(route)
 
 
 def delete_discarded_routes(route_id, user_id):
-    count = Route.query.filter(Route.user_id == user_id, Route.id != route_id, Route.trip_id == None).delete()
+    count = Route.query.filter(
+        Route.user_id == user_id,
+        Route.id != route_id,
+        Route.trip_id == None
+    ).delete()
     if count == 0:
         abort(404, 'User and route combination not found')
     Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).trip_id = request.json['trip_id']

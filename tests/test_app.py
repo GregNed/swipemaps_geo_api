@@ -4,7 +4,6 @@ import pytest
 from shapely.geometry import LineString, Point
 from shapely.affinity import translate
 from geoalchemy2.shape import to_shape
-from geojson import Feature, FeatureCollection
 
 from app import app
 from app.helpers import transform
