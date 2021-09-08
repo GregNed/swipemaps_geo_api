@@ -247,9 +247,11 @@ def routes():
                     for coords in part['geometry'].coords
                 ])
                 # Remove overlapping parts
-                if part['geometry'].overlaps(route['geometry']) and not part['geometry'].within(route['geometry']):
+                try:
                     part['geometry'], route['geometry'] = part['geometry'].symmetric_difference(route['geometry'])
-                    parts_to_merge.append(part)  # is a proper part, add to list for merging
+                except ValueError:  # too many values to unpack (part is already inside route)
+                    continue
+                parts_to_merge.append(part)  # is a proper part, add to list for merging
             # Stitch the parts together if there is a tail or a head, or both
             if len(parts_to_merge) > 1:
                 full_route = linemerge(unary_union([part['geometry'] for part in parts_to_merge]))
