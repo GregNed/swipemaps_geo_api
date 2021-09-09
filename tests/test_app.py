@@ -21,7 +21,7 @@ POSITIONS = [  # HEIDELBERG
 ]
 
 
-def prepare_route(profile: str, user_id=None, trip_id=None, positions=POSITIONS):
+def prepare_route(profile: str, user_id=None, trip_id=None, positions=POSITIONS, is_handled=False):
     """Pre-save a route to DB to perform further tests on it."""
     geog = LineString([position[::-1] for position in positions])
     attrs = {
@@ -30,6 +30,7 @@ def prepare_route(profile: str, user_id=None, trip_id=None, positions=POSITIONS)
         'profile': profile,
         'distance': 100.0,
         'duration': 10.0,
+        'is_handled': is_handled
     }
     route = Route(id=uuid4(), geog=geog.wkt, **attrs)
     try:
@@ -157,7 +158,7 @@ def test_routes_prepared_trip_id(client):
     """Only routes with set trip ids are reused."""
     user_id = uuid4()
     positions = POSITIONS[:2]
-    prepare_route('driving-car', user_id=user_id, positions=positions)
+    prepare_route('driving-car', user_id=user_id, positions=positions, is_handled=True)
     body = {
         'positions': positions,
         'profile': 'driving-car',
@@ -173,7 +174,7 @@ def test_routes_prepared_trip_id(client):
 def test_routes_prepared_user_id(client):
     """Only the user's routes are reused."""
     positions = POSITIONS[:2]
-    prepare_route('driving-car', trip_id=uuid4(), positions=positions)
+    prepare_route('driving-car', trip_id=uuid4(), positions=positions, is_handled=True)
     body = {
         'positions': positions,
         'profile': 'driving-car',
@@ -190,7 +191,7 @@ def test_routes_prepared_identical(client):
     """Identical routes are reused; nothing breaks due to absence of tail and head."""
     user_id = uuid4()
     positions = POSITIONS[:2]
-    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions)
+    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions, is_handled=True)
     body = {
         'positions': positions,
         'profile': 'driving-car',
@@ -206,7 +207,7 @@ def test_routes_prepared_identical(client):
 def test_routes_prepared_reverse(client):
     """Route direction is considered when reusing routes."""
     user_id = uuid4()
-    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=POSITIONS[1:None:-1])
+    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=POSITIONS[1:None:-1], is_handled=True)
     body = {
         'positions': POSITIONS[:2],
         'profile': 'driving-car',
@@ -223,7 +224,7 @@ def test_routes_prepared_distant_start(client):
     """Route whose start is further than {config.POINT_PROXIMITY_THRESHOLD}."""
     user_id = uuid4()
     positions = POSITIONS[:2]
-    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions)
+    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions, is_handled=True)
     distant_start = translate(transform(Point(positions[0])), app.config['POINT_PROXIMITY_THRESHOLD'])
     body = {
         'positions': [list(transform(distant_start, to_wgs84=True).coords[0]), positions[1]],
@@ -241,7 +242,7 @@ def test_routes_prepared_distant_finish(client):
     """Route whose finish is further than {config.POINT_PROXIMITY_THRESHOLD}."""
     user_id = uuid4()
     positions = POSITIONS[:2]
-    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions)
+    prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions, is_handled=True)
     distant_finish = translate(transform(Point(positions[-1])), app.config['POINT_PROXIMITY_THRESHOLD'])
     body = {
         'positions': [positions[0], list(transform(distant_finish, to_wgs84=True).coords[0])],
