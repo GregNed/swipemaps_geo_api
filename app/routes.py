@@ -210,6 +210,7 @@ def routes():
         # Get all the routes from the user's history
         past_routes = Route.query.filter(
             Route.user_id == request.json['user_id'],
+            Route.is_handled,
             Route.trip_id != None,
             func.ST_Distance(route_start, func.ST_GeomFromText(start_projected.wkt, PROJECTION))
             < app.config['POINT_PROXIMITY_THRESHOLD'],
@@ -280,9 +281,10 @@ def routes():
                 id=route_id,
                 user_id=request.json['user_id'],
                 profile=request.json['profile'],
-                geog=LineString(route['geometry']).wkt,
                 distance=route['distance'],
-                duration=route['duration']
+                duration=route['duration'],
+                geog=LineString(route['geometry']).wkt,
+                is_handled=(request.json['handles'] and len(positions) > 2)
             ))
         if request.json['profile'] == 'driving-car' and with_handles:
             # Get midpoints of the route's last segment for the user to drag on the screen

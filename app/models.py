@@ -12,9 +12,10 @@ class Route(db.Model):
     user_id = db.Column(UUID(as_uuid=True), nullable=False)
     trip_id = db.Column(UUID(as_uuid=True), unique=True)
     profile = db.Column(db.Text, nullable=False)
-    geog = db.Column(Geography('LineString', srid=4326))
     distance = db.Column(db.Float)
     duration = db.Column(db.Float)
+    geog = db.Column(Geography('LineString', srid=4326))
+    is_handled = db.Column(db.Boolean, nullable=False, default=False)
     pickup_point = db.relationship('PickupPoint', backref='route', uselist=False, lazy=True)
     dropoff_point = db.relationship('DropoffPoint', backref='route', uselist=False, lazy=True)
 
