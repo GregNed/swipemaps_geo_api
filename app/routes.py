@@ -68,9 +68,7 @@ def is_passenger_arrived(route_id, position):
 
 def get_pickup_point(route_id):
     point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).pickup_point
-    if not point:
-        abort(404, f'Route {route_id} has no pick-up point')
-    return list(to_shape(point.geog).coords[0])
+    return list(to_shape(point.geog).coords[0]) if point else 204, f'Route {route_id} has no pick-up point'
 
 
 def post_pickup_point(route_id):
@@ -90,9 +88,7 @@ def post_pickup_point(route_id):
 
 def get_dropoff_point(route_id):
     point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).dropoff_point
-    if not point:
-        abort(404, f'Route {route_id} has no drop-off point')
-    return list(to_shape(point.geog).coords[0])
+    return list(to_shape(point.geog).coords[0]) if point else 204, f'Route {route_id} has no drop-off point'
 
 
 def post_dropoff_point(route_id):
@@ -284,7 +280,7 @@ def routes():
                 distance=route['distance'],
                 duration=route['duration'],
                 geog=LineString(route['geometry']).wkt,
-                is_handled=(request.json['handles'] and len(positions) > 2)
+                is_handled=(with_handles and len(positions) > 2)
             ))
         if request.json['profile'] == 'driving-car' and with_handles:
             # Get midpoints of the route's last segment for the user to drag on the screen

@@ -341,7 +341,7 @@ paths:
       - $ref: "#/components/parameters/routeID"
     get:
       summary: Get pick-up point
-      description: Retrieve a pick-up point from the database using it's route's ID
+      description: Retrieve a pick-up point from the database using its route's ID
       operationId: app.routes.get_pickup_point
       responses:
         200:
@@ -350,8 +350,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Position"
+        204:
+          description: The route has no pick-up point
         404:
-          $ref: "#/components/responses/PickupPointNotFound"
+          $ref: "#/components/responses/RouteNotFound"
     post:
       summary: Save a pick-up point
       description: Save a passenger pick-up point with a reference to their route
@@ -383,16 +385,12 @@ paths:
               operationId: app.routes.get_pickup_point
               parameters:
                 point_id: $response.body
-        400:
-          description: Bad request, e.g. duplicate points or invalid parameters
-        500:
-          description: Server error. Often, an ORS error that may actually be cause by a bad request
   "/routes/{route_id}/dropoff":
     parameters:
       - $ref: "#/components/parameters/routeID"
     get:
       summary: Get drop-off point
-      description: Retrieve a drop-off point from the database using it's route's ID
+      description: Retrieve a drop-off point from the database using its route's ID
       operationId: app.routes.get_dropoff_point
       responses:
         200:
@@ -401,8 +399,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Position"
+        204:
+          description: The route has no drop-off point
         404:
-          $ref: "#/components/responses/DropoffPointNotFound"
+          $ref: "#/components/responses/RouteNotFound"
     post:
       summary: Save a drop-off point
       description: Save a passenger drop-off point with a reference to their route
@@ -817,10 +817,6 @@ components:
   responses:
     RouteNotFound:
       description: "No such route in the database :-("
-    PickupPointNotFound:
-      description: "No such route in the database, or it has no pick-up point :-("
-    DropoffPointNotFound:
-      description: "No such route in the database, or it has no drop-off point :-("
   # securitySchemes:
   #   BasicAuth:
   #     type: http
