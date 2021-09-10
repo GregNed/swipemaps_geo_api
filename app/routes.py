@@ -68,7 +68,7 @@ def is_passenger_arrived(route_id, position):
 
 def get_pickup_point(route_id):
     point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).pickup_point
-    return list(to_shape(point.geog).coords[0]) if point else 204, f'Route {route_id} has no pick-up point'
+    return list(to_shape(point.geog).coords[0]) if point else f'Route {route_id} has no pick-up point', 204
 
 
 def post_pickup_point(route_id):
@@ -88,7 +88,7 @@ def post_pickup_point(route_id):
 
 def get_dropoff_point(route_id):
     point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).dropoff_point
-    return list(to_shape(point.geog).coords[0]) if point else 204, f'Route {route_id} has no drop-off point'
+    return list(to_shape(point.geog).coords[0]) if point else f'Route {route_id} has no drop-off point', 204
 
 
 def post_dropoff_point(route_id):
