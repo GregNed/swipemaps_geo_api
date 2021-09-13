@@ -151,7 +151,7 @@ def suggest_pickup(route_id, position):
     driver_route_start = Point(driver_route_shape.coords[0])
     if driver_route_start.distance(nearest_point) < 500:  # just meet driver at their start
         nearest_point = driver_route_start
-    elif stops:
+    elif stops.first():  # not empty
         nearest_point = to_shape(stops.order_by(
             func.ST_Distance(PublicTransportStop.geom, passenger_start_postgis)
         ).first().geom)
