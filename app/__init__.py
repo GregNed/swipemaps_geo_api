@@ -24,6 +24,6 @@ ma = Marshmallow(connexion_app)
 connexion_app.add_api(
     'swagger.yml',
     strict_validation=True,
-    # validate_responses=app.config['VALIDATE_RESPONSES'],
+    validate_responses=app.config['VALIDATE_RESPONSES'],
     arguments={'config': app.config}
 )
