@@ -326,14 +326,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  distance:
-                    type: number
-                    format: float
-                  radius:
-                    type: number
-                    format: float
-                  point:
-                    $ref: "#/components/schemas/Position"
+                  nearest_point:
+                    $ref: "#/components/schemas/Feature"
+                    geometryType: Point
+                  stops:
+                    $ref: "#/components/schemas/FeatureCollection"
+                    geometryType: Point
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/pickup":

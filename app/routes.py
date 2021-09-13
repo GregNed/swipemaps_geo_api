@@ -129,30 +129,31 @@ def remainder(route_id, position):
 
 
 def suggest_pickup(route_id, position):
-    driver_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    driver_route_projected = transform(to_shape(driver_route.geog))
-    passenger_start_wgs84 = Point(map(float, position.split(',')[::-1]))
-    passenger_start_projected = transform(passenger_start_wgs84)
+    driver_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geog
+    driver_route_projected = transform(to_shape(driver_route))
+    passenger_start = Point(map(float, position.split(',')[::-1]))
+    # Project it for Shapely calculations
+    passenger_start_projected = transform(passenger_start)
+    # Reassign it for PostGIS calculations
+    passenger_start = func.ST_GeogFromText(passenger_start.wkt)
+    # Retrieve the relevant public transport stops
+    public_transport_stop_geom = func.ST_GeogFromWKB(func.ST_AsBinary(PublicTransportStop.geom))
+    stops = PublicTransportStop.query.filter(
+        func.ST_DWithin(public_transport_stop_geom, driver_route, 50, use_spheroid=False),
+        func.ST_DWithin(public_transport_stop_geom, passenger_start, 1000, use_spheroid=False)
+    )
     # Identify the closest point on the driver's route
     nearest_point = nearest_points(driver_route_projected, passenger_start_projected)[0]
-    # Obtain the actual (graph-based route) so that the pickup point always be accessible
-    passenger_route = ors.directions(
-        [pt.coords[0] for pt in (passenger_start_wgs84, transform(nearest_point, to_wgs84=True))],
-        'foot-walking'
-    )[0]
-    # If straight-line nearest point was unreachable by walking, resulting route may contain a new 'nearest' point
-    nearest_point = passenger_route['geometry'][-1]
-    if driver_route_projected.project(transform(Point(nearest_point))) < 500:
-        radius = 0
-        nearest_point = to_shape(driver_route.geog).coords[0]
-        passenger_route = ors.directions([passenger_start_wgs84.coords[0], nearest_point], 'foot-walking')[0]
-    else:
-        # Calculate the straight-line distance for the front to use as the circle radius
-        radius = passenger_start_projected.distance(transform(Point(nearest_point)))
+    driver_route_start = Point(driver_route_projected.coords[0])
+    if driver_route_start.distance(nearest_point) < 500:  # just meet driver at their start
+        nearest_point = transform(driver_route_start, to_wgs84=True)
+    elif stops:
+        nearest_point = to_shape(stops.order_by(
+            func.ST_Distance(PublicTransportStop.geom, passenger_start)
+        ).first().geom)
     return {
-        'point': nearest_point,
-        'radius': max(round(radius, 2), 1000),
-        'distance': passenger_route['distance']
+        'nearest_point': Feature(geometry=nearest_point),
+        'stops': FeatureCollection([Feature(geometry=to_shape(stop.geom)) for stop in stops])
     }
 
 
