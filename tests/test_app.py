@@ -6,7 +6,7 @@ from shapely.affinity import translate
 from geoalchemy2.shape import to_shape
 
 from app import app
-from app.helpers import transform
+from app.helpers import to_wgs84, project
 from app.models import db, Route, PickupPoint, DropoffPoint
 
 
@@ -23,7 +23,7 @@ POSITIONS = [  # HEIDELBERG
 
 def prepare_route(profile: str, user_id=None, trip_id=None, positions=POSITIONS, is_handled=False):
     """Pre-save a route to DB to perform further tests on it."""
-    geog = LineString([position[::-1] for position in positions])
+    geom = LineString([position[::-1] for position in positions])
     attrs = {
         'user_id': user_id or uuid4(),
         'trip_id': trip_id,
@@ -32,7 +32,7 @@ def prepare_route(profile: str, user_id=None, trip_id=None, positions=POSITIONS,
         'duration': 10.0,
         'is_handled': is_handled
     }
-    route = Route(id=uuid4(), geog=geog.wkt, **attrs)
+    route = Route(id=uuid4(), geom=project(geom).wkt, **attrs)
     try:
         db.session.add(route)
         db.session.commit()
@@ -113,10 +113,9 @@ def test_routes_passenger(client):
         'make_route': False  # do not pave an actual route via ORS
     }
     response = client.post('/routes', json=body).get_json()
-    route = response['routes']['features'][0]
-    route = Route.query.get(route['id'])
+    route = to_wgs84(to_shape(Route.query.get(response['routes']['features'][0]['id']).geom))
     # Assert the route has been stored as a straight line between the positions
-    assert to_shape(route.geog).almost_equals(LineString(position[::-1] for position in positions))
+    assert route.almost_equals(LineString([position[::-1] for position in positions]))
 
 
 def test_routes_alternatives(client):
@@ -225,9 +224,9 @@ def test_routes_prepared_distant_start(client):
     user_id = uuid4()
     positions = POSITIONS[:2]
     prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions, is_handled=True)
-    distant_start = translate(transform(Point(positions[0])), app.config['POINT_PROXIMITY_THRESHOLD'])
+    distant_start = translate(project(Point(positions[0])), app.config['POINT_PROXIMITY_THRESHOLD'])
     body = {
-        'positions': [list(transform(distant_start, to_wgs84=True).coords[0]), positions[1]],
+        'positions': [list(to_wgs84(distant_start).coords[0]), positions[1]],
         'profile': 'driving-car',
         'user_id': user_id,
         'alternatives': True,
@@ -243,9 +242,9 @@ def test_routes_prepared_distant_finish(client):
     user_id = uuid4()
     positions = POSITIONS[:2]
     prepare_route('driving-car', user_id=user_id, trip_id=uuid4(), positions=positions, is_handled=True)
-    distant_finish = translate(transform(Point(positions[-1])), app.config['POINT_PROXIMITY_THRESHOLD'])
+    distant_finish = translate(project(Point(positions[-1])), app.config['POINT_PROXIMITY_THRESHOLD'])
     body = {
-        'positions': [positions[0], list(transform(distant_finish, to_wgs84=True).coords[0])],
+        'positions': [positions[0], list(to_wgs84(distant_finish).coords[0])],
         'profile': 'driving-car',
         'user_id': user_id,
         'alternatives': True,
@@ -260,7 +259,10 @@ def test_get_route(client):
     """A route can be retrieved from the DB by its UUID."""
     route_in = prepare_route('driving-car', positions=POSITIONS)
     route_out = client.get(f'/routes/{route_in.id}').get_json()
-    assert LineString(route_out['geometry']['coordinates']).almost_equals(to_shape(route_in.geog), decimal=3)
+    route_out_geom = project(LineString(route_out['geometry']['coordinates']))
+    print(list(route_out_geom.coords))
+    print(list(to_shape(route_in.geom).coords))
+    assert route_out_geom.almost_equals(to_shape(route_in.geom), decimal=1)
     assert str(route_in.id) == route_out['id']
     for attr in ('profile', 'user_id', 'distance', 'duration'):
         assert str(route_out['properties'][attr]) == str(getattr(route_in, attr))  # to serialize UUID
