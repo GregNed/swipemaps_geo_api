@@ -160,7 +160,7 @@ paths:
         404:
           $ref: "#/components/responses/RouteNotFound"
     post:
-      operationId: app.routes.route_walking
+      operationId: app.routes.walking_route
       summary: Make walking route
       description: |
         Build a pedestrian route using from the specified location to another route or vice versa

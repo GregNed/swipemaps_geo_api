@@ -9,6 +9,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ['DATABASE_URL']
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     VALIDATE_RESPONSES = True
+    # The cartographic projection used to store and operate on spatial data
+    PROJECTION = 32637  # https://epsg.io/32637
     # Business logic parameters
     CANDIDATE_DISTANCE_LIMIT = 30000
     ORS_MAX_ALTERNATIVES = 2

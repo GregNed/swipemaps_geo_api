@@ -4,20 +4,30 @@ import pyproj
 from geojson import Feature
 from geoalchemy2.shape import to_shape
 
+from app import app
 from app.schemas import RouteSchema
 
 
 route_schema = RouteSchema()
-PROJECTION = 32637  # https://epsg.io/32637
-TRANSFORM = pyproj.Transformer.from_crs(4326, PROJECTION, always_xy=True)
+transform = pyproj.Transformer.from_crs(4326, app.config['PROJECTION'], always_xy=True).transform
 
 
-def transform(shape, to_wgs84=False):
+# These two functions transform a.k.a reproject geographic coords to planar
+# Although most of the code is repeated, I chose to keep them separate so their
+# signature be more 'clear' (no direction parameter, just two obviously named funcs)
+def project(shape):
     if shape.is_empty:
         return shape
     geometry_type = type(shape)
-    direction = 'INVERSE' if to_wgs84 else 'FORWARD'
-    xx, yy = TRANSFORM.transform(*shape.xy, direction=direction)
+    xx, yy = transform(*shape.xy, direction='FORWARD')
+    return geometry_type(zip(xx.tolist(), yy.tolist()))
+
+
+def to_wgs84(shape):
+    if shape.is_empty:
+        return shape
+    geometry_type = type(shape)
+    xx, yy = transform(*shape.xy, direction='INVERSE')
     return geometry_type(zip(xx.tolist(), yy.tolist()))
 
 
@@ -28,4 +38,4 @@ def haversine(from_, to_):
 
 
 def route_to_feature(route):
-    return Feature(route.id, to_shape(route.geog), route_schema.dump(route))
+    return Feature(route.id, to_wgs84(to_shape(route.geom)), route_schema.dump(route))
