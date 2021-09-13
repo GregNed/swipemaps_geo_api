@@ -268,7 +268,7 @@ def routes():
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
     if request.json.get('make_route') is False:
         route_id = uuid4()
-        route_wgs84 = LineString((start, finish))
+        route_wgs84 = LineString([start, finish])
         db.session.add(Route(
             id=route_id,
             user_id=request.json['user_id'],
