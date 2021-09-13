@@ -157,7 +157,8 @@ def suggest_pickup(route_id, position):
         ).first().geom)
     return {
         'nearest_point': Feature(geometry=to_wgs84(nearest_point)),
-        'stops': FeatureCollection([Feature(geometry=to_wgs84(to_shape(stop.geom))) for stop in stops])
+        'stops': FeatureCollection([Feature(geometry=to_wgs84(to_shape(stop.geom))) for stop in stops]),
+        'radius': max(passenger_start.distance(nearest_point), 1000)
     }
 
 
