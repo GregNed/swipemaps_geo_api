@@ -13,8 +13,8 @@ class Config:
     PROJECTION = 32637  # https://epsg.io/32637
     # Business logic parameters
     CANDIDATE_DISTANCE_LIMIT = 30000
-    ORS_MAX_ALTERNATIVES = 2
-    MAX_PREPARED_ROUTES = 5
+    ORS_MAX_ALTERNATIVES = 3
+    MAX_PREPARED_ROUTES = 2
     DROPOFF_RADIUS = 150  # in meters
     POINT_PROXIMITY_THRESHOLD = 1000  # in meters
 
