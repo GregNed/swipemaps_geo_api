@@ -260,9 +260,7 @@ def test_get_route(client):
     route_in = prepare_route('driving-car', positions=POSITIONS)
     route_out = client.get(f'/routes/{route_in.id}').get_json()
     route_out_geom = project(LineString(route_out['geometry']['coordinates']))
-    print(list(route_out_geom.coords))
-    print(list(to_shape(route_in.geom).coords))
-    assert route_out_geom.almost_equals(to_shape(route_in.geom), decimal=1)
+    assert route_out_geom.almost_equals(to_shape(route_in.geom), decimal=0)
     assert str(route_in.id) == route_out['id']
     for attr in ('profile', 'user_id', 'distance', 'duration'):
         assert str(route_out['properties'][attr]) == str(getattr(route_in, attr))  # to serialize UUID
