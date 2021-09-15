@@ -15,7 +15,7 @@ class Config:
     CANDIDATE_DISTANCE_LIMIT = 30000
     ORS_MAX_ALTERNATIVES = 2
     MAX_PREPARED_ROUTES = 5
-    DROPOFF_RADIUS = 500  # in meters
+    DROPOFF_RADIUS = 150  # in meters
     POINT_PROXIMITY_THRESHOLD = 1000  # in meters
 
 
