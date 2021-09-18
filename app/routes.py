@@ -343,13 +343,17 @@ def delete_discarded_routes(route_id, user_id):
 
 def get_candidates(route_id):
     target_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    candidate_route_ids = request.json['candidate_route_ids']
     target_start = func.ST_StartPoint(target_route.geom)
     target_finish = func.ST_EndPoint(target_route.geom)
     candidate_start = func.ST_StartPoint(Route.geom)
     candidate_finish = func.ST_EndPoint(Route.geom)
+    pickup_point = func.ST_LineLocatePoint(target_route.geom, candidate_start)
+    dropoff_point = func.ST_LineLocatePoint(target_route.geom, candidate_finish)
+    route_to_target = func.ST_ShortestLine(target_route.geom, candidate_start)
+    route_from_target = func.ST_ShortestLine(target_route.geom, candidate_finish)
+    common_part = func.ST_LineSubstring(target_route.geom, pickup_point, dropoff_point)
     candidate_routes = Route.query.filter(
-        Route.id.in_(candidate_route_ids),
+        Route.id.in_(request.json['candidate_route_ids']),
         Route.user_id != target_route.user_id,
         func.ST_Distance(candidate_start, target_route.geom) < app.config['CANDIDATE_DISTANCE_LIMIT'],
         func.ST_Distance(candidate_finish, target_route.geom) < app.config['CANDIDATE_DISTANCE_LIMIT'],
@@ -357,6 +361,12 @@ def get_candidates(route_id):
     )
     if target_route.profile == 'foot-walking':
         candidate_routes = candidate_routes.filter(Route.trip_id != None)
+    else:  # passenger's overall walk must be < their ride
+        candidate_routes = candidate_routes.filter(
+            func.ST_Length(common_part) >
+            (func.ST_Length(route_to_target) + func.ST_Length(route_from_target))
+            * 1.5  # actual route / straight line coefficient
+        )
     # Define attributes & weights for sorting: (candidate_route, target_route, weight)
     sortings = {
         'driving-car': (
@@ -373,8 +383,8 @@ def get_candidates(route_id):
         )
     }
     candidate_routes.order_by(sum([
-        func.ST_Distance(from_, to_) * weight
-        for from_, to_, weight in sortings[target_route.profile]
+        func.ST_Distance(from_, to) * weight
+        for from_, to, weight in sortings[target_route.profile]
     ]))
     return [route.id for route in candidate_routes]
 
