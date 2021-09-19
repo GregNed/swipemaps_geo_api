@@ -141,24 +141,17 @@ def suggest_pickup(route_id, position):
     driver_route_shape = to_shape(driver_route)
     passenger_start = project(Point(map(float, position.split(',')[::-1])))
     passenger_start_postgis = from_shape(passenger_start, PROJECTION)
-    # Retrieve the relevant public transport stops
-    stops = PublicTransportStop.query.filter(
-        func.ST_DWithin(PublicTransportStop.geom, driver_route, 50),
-        func.ST_DWithin(PublicTransportStop.geom, passenger_start_postgis, 1000)
-    )
     # Identify the closest point on the driver's route
     nearest_point = nearest_points(driver_route_shape, passenger_start)[0]
-    driver_route_start = Point(driver_route_shape.coords[0])
-    if driver_route_start.distance(nearest_point) < 500:  # just meet driver at their start
-        nearest_point = driver_route_start
-    elif stops.first():  # not empty
-        nearest_point = to_shape(stops.order_by(
-            func.ST_Distance(PublicTransportStop.geom, passenger_start_postgis)
-        ).first().geom)
+    radius = max(passenger_start.distance(nearest_point), app.config['PICKUP_MAX_RADIUS'])
+    # Retrieve the relevant public transport stops
+    stops = PublicTransportStop.query.filter(
+        func.ST_DWithin(PublicTransportStop.geom, passenger_start_postgis, radius)
+    )
     return {
+        'radius': radius,
         'nearest_point': Feature(geometry=to_wgs84(nearest_point)),
         'stops': FeatureCollection([Feature(geometry=to_wgs84(to_shape(stop.geom))) for stop in stops]),
-        'radius': max(passenger_start.distance(nearest_point), 1000)
     }
 
 
