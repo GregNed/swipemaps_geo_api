@@ -18,6 +18,7 @@ class Config:
     DROPOFF_RADIUS = 150  # in meters
     POINT_PROXIMITY_THRESHOLD = 1000  # in meters
     PICKUP_MAX_RADIUS = 1000
+    PICKUP_MIN_RADIUS = 200
 
 
 class ProductionConfig(Config):

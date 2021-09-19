@@ -143,7 +143,8 @@ def suggest_pickup(route_id, position):
     passenger_start_postgis = from_shape(passenger_start, PROJECTION)
     # Identify the closest point on the driver's route
     nearest_point = nearest_points(driver_route_shape, passenger_start)[0]
-    radius = max(passenger_start.distance(nearest_point), app.config['PICKUP_MAX_RADIUS'])
+    radius = min(passenger_start.distance(nearest_point), app.config['PICKUP_MAX_RADIUS'])
+    radius = max(radius, app.config['PICKUP_MIN_RADIUS'])
     # Retrieve the relevant public transport stops
     stops = PublicTransportStop.query.filter(
         func.ST_DWithin(PublicTransportStop.geom, passenger_start_postgis, radius)
