@@ -159,11 +159,15 @@ def walking_route(route_id):
     """"""
     route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
     position = request.json['position'][::-1]  # lat, lon -> lon, lat
-    nearest_point, _ = nearest_points(route, project(Point(position)))
-    positions = [position, to_wgs84(nearest_point).coords[0]]
+    nearest_point = to_wgs84(nearest_points(route, project(Point(position)))[0]).coords[0]
+    positions = [position, nearest_point]
     if request.json['to_or_from'] == 'from':
         positions.reverse()
     route = ors.directions(positions, 'foot-walking')[0]
+    if request.json['to_or_from'] == 'to':
+        route['geometry'].append(nearest_point)
+    else:
+        route['geometry'].insert(0, nearest_point)
     route_id = uuid4()
     db.session.add(Route(
         id=route_id,
