@@ -6,13 +6,19 @@ services:
     restart: always
     env_file:
       - .env
-    ports:
-      - "5000:5000"
+    expose:
+      - 5000
     depends_on:
       ors:
         condition: service_healthy
       pg:
         condition: service_started
+  nginx:
+    image: registry.gitlab.com/dangoclub/nginx
+    ports: 
+      - 1337:80
+    depends_on:
+      - api
   ors:
     image: registry.gitlab.com/dangoclub/ors
     restart: always
