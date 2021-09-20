@@ -16,7 +16,7 @@ services:
   nginx:
     image: registry.gitlab.com/dangoclub/nginx
     ports: 
-      - 1337:80
+      - 80:80
     depends_on:
       - api
   ors:
