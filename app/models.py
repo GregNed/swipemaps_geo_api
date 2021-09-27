@@ -15,7 +15,7 @@ class Route(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     distance = db.Column(db.Float)
     duration = db.Column(db.Float)
-    geom = db.Column(Geometry('LineString', srid=32637))
+    geom = db.Column(Geometry('LineString', srid=32637, spatial_index=False))
     is_handled = db.Column(db.Boolean, nullable=False, default=False)
     pickup_point = db.relationship('PickupPoint', backref='route', uselist=False, lazy=True)
     dropoff_point = db.relationship('DropoffPoint', backref='route', uselist=False, lazy=True)
@@ -29,7 +29,7 @@ class PickupPoint(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True)
     route_id = db.Column(UUID(as_uuid=True), db.ForeignKey('route.id', ondelete='CASCADE'), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    geom = db.Column(Geometry('Point', srid=32637), nullable=False)
+    geom = db.Column(Geometry('Point', srid=32637, spatial_index=False), nullable=False)
 
     def __repr__(self):
         return f'<Pickup point {self.id}>'
@@ -40,7 +40,7 @@ class DropoffPoint(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True)
     route_id = db.Column(UUID(as_uuid=True), db.ForeignKey('route.id', ondelete='CASCADE'), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    geom = db.Column(Geometry('Point', srid=32637), nullable=False)
+    geom = db.Column(Geometry('Point', srid=32637, spatial_index=False), nullable=False)
 
     def __repr__(self):
         return f'<Dropoff point {self.id}>'
@@ -50,7 +50,14 @@ class PublicTransportStop(db.Model):
     """"""
     id = db.Column(UUID(as_uuid=True), primary_key=True)
     name = db.Column(db.Text)
-    geom = db.Column(Geometry('Point', srid=32637), nullable=False)
+    geom = db.Column(Geometry('Point', srid=32637, spatial_index=False), nullable=False)
 
     def __repr__(self):
         return f'<Stop {self.name}>'
+
+
+# Create spatial indexes explicily since alembic dropoff those implied by GeoAlchemy
+db.Index('idx_route_geom', Route.geom, postgresql_using='gist')
+db.Index('idx_pickup_point_geom', PickupPoint.geom, postgresql_using='gist')
+db.Index('idx_dropoff_point_geom', DropoffPoint.geom, postgresql_using='gist')
+db.Index('idx_public_transport_stop_geom', PublicTransportStop.geom, postgresql_using='gist')
