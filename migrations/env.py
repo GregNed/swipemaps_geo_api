@@ -1,92 +1,47 @@
-from __future__ import with_statement
 import logging
 from logging.config import fileConfig
 
 from flask import current_app
 from alembic import context
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
-config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+config = context.config  # alembic.ini
+# Set up logging
 fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-config.set_main_option(
-    'sqlalchemy.url',
-    str(current_app.extensions['migrate'].db.engine.url).replace('%', '%%'))
-target_metadata = current_app.extensions['migrate'].db.metadata
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
+# Get a ref to the migrate extension
+migrate = current_app.extensions['migrate']
+# Specify the database
+config.set_main_option('sqlalchemy.url', str(migrate.db.engine.url))
+# Specify the tables in models.py to be monitored
+target_metadata = migrate.db.metadata
+# Ignore 'static' table baked into custom postgis image so alembic doesn't drop them
 exclude_tables = config.get_section('exclude').get('tables', '').split(',')
 
-def include_object(object, name, type_, reflected, compare_to):    
-    return not (type_ == "table" and name in exclude_tables)
 
-def run_migrations_offline():
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
-    context.configure(
-        config.get_main_option("sqlalchemy.url"),
-        target_metadata=target_metadata,
-        literal_binds=True,
-        include_object=include_object
-    )
-    with context.begin_transaction():
-        context.run_migrations()
+def include_object(_, name, type_, *args):
+    """Check if the passed object, e.g. table, is excluded from monitoring."""
+    return not (type_ == 'table' and name in exclude_tables)
 
 
-def run_migrations_online():
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
-    # this callback is used to prevent an auto-migration from being generated when there are no changes to the schema
-    # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
+def run_migrations():
+    """Apply migrations directly to the db, rather than generate a SQL script."""
+    # Prevent an auto-migration from being generated when there are no changes to the schema
     def process_revision_directives(context, revision, directives):
-        if getattr(config.cmd_opts, 'autogenerate', False):
-            script = directives[0]
-            if script.upgrade_ops.is_empty():
-                directives[:] = []
-                logger.info('No changes in schema detected.')
+        if getattr(config.cmd_opts, 'autogenerate', False) and directives[0].upgrade_ops.is_empty():
+            directives[:] = []
+            logger.info('No changes detected')
 
-    connectable = current_app.extensions['migrate'].db.engine
-
-    with connectable.connect() as connection:
+    with migrate.db.engine.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             process_revision_directives=process_revision_directives,
             include_object=include_object,
-            **current_app.extensions['migrate'].configure_args
+            **migrate.configure_args
         )
-
         with context.begin_transaction():
             context.run_migrations()
 
 
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+run_migrations()
