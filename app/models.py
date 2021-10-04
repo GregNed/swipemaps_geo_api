@@ -56,8 +56,19 @@ class PublicTransportStop(db.Model):
         return f'<Stop {self.name}>'
 
 
+class Aoi(db.Model):
+    """"""
+    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    name = db.Column(db.Text)
+    geom = db.Column(Geometry('Polygon', srid=32637, spatial_index=False), nullable=False)
+
+    def __repr__(self):
+        return f'<AOI {self.name}>'
+
+
 # Create spatial indexes explicily since alembic dropoff those implied by GeoAlchemy
 db.Index('idx_route_geom', Route.geom, postgresql_using='gist')
 db.Index('idx_pickup_point_geom', PickupPoint.geom, postgresql_using='gist')
 db.Index('idx_dropoff_point_geom', DropoffPoint.geom, postgresql_using='gist')
 db.Index('idx_public_transport_stop_geom', PublicTransportStop.geom, postgresql_using='gist')
+db.Index('idx_aoi_geom', Aoi.geom, postgresql_using='gist')
