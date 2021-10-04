@@ -1,8 +1,11 @@
 FROM python:3.9-slim
-
+# Reduce image size by not writing .pyc files
+ENV PYTHONDONTWRITEBYTECODE 1
+# Flush stdout straight to logs
+ENV PYTHONUNBUFFERED 1
+# Install curl for healthcheck
 RUN apt-get update && \
-    apt-get --no-install-recommends upgrade -y && \
-    apt-get install -y curl && \
+    apt-get install -y --no-install-recommends curl && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
