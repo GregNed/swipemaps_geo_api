@@ -3,6 +3,7 @@ import math
 import pyproj
 from geojson import Feature
 from geoalchemy2.shape import to_shape
+from shapely.geometry import Polygon
 
 from app import app
 from app.schemas import RouteSchema
@@ -15,10 +16,13 @@ transform = pyproj.Transformer.from_crs(4326, app.config['PROJECTION'], always_x
 # These two functions transform a.k.a reproject geographic coords to planar
 # Although most of the code is repeated, I chose to keep them separate so their
 # signature be more 'clear' (no direction parameter, just two obviously named funcs)
+
 def project(shape):
     if shape.is_empty:
         return shape
     geometry_type = type(shape)
+    if isinstance(shape, Polygon):
+        shape = shape.exterior
     xx, yy = transform(*shape.xy, direction='FORWARD')
     return geometry_type(zip(xx.tolist(), yy.tolist()))
 
@@ -27,6 +31,8 @@ def to_wgs84(shape):
     if shape.is_empty:
         return shape
     geometry_type = type(shape)
+    if isinstance(shape, Polygon):
+        shape = shape.exterior
     xx, yy = transform(*shape.xy, direction='INVERSE')
     return geometry_type(zip(xx.tolist(), yy.tolist()))
 
