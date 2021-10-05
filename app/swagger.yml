@@ -32,6 +32,18 @@ paths:
                     $ref: "#/components/schemas/ServiceStateString"
                   pelias:
                     $ref: "#/components/schemas/ServiceStateString"
+  "/areas":
+    get:
+      operationId: app.routes.get_areas
+      summary: Supported Areas
+      description: Get all geographical areas supported by Dango
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureCollection"
   "/stops":
     get:
       parameters:

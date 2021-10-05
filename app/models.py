@@ -60,10 +60,10 @@ class Aoi(db.Model):
     """"""
     id = db.Column(UUID(as_uuid=True), primary_key=True)
     name = db.Column(db.Text)
-    geom = db.Column(Geometry('Polygon', srid=32637, spatial_index=False), nullable=False)
+    geom = db.Column(Geometry('Polygon', srid=3857, spatial_index=False), nullable=False)
 
     def __repr__(self):
-        return f'<AOI {self.name}>'
+        return f'<Area {self.name}>'
 
 
 # Create spatial indexes explicily since alembic dropoff those implied by GeoAlchemy

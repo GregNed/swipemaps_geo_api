@@ -10,7 +10,7 @@ from flask import request, abort
 from geoalchemy2.shape import from_shape, to_shape
 
 from app import app, db, ors
-from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop
+from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop, Aoi
 from app.helpers import project, to_wgs84, haversine, route_to_feature
 
 
@@ -33,6 +33,13 @@ def healthcheck():
     except:
         response['pelias'] = 'unavailable'
     return response
+
+
+def get_areas():
+    return FeatureCollection([
+        Feature(aoi.id, to_wgs84(to_shape(aoi.geom)), {'name': aoi.name})
+        for aoi in Aoi.query.all()
+    ])
 
 
 def get_stops(bbox):
