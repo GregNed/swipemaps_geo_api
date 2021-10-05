@@ -43,7 +43,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FeatureCollection"
+                type: object
+                properties:
+                  polygons:
+                    type: object
+                    $ref: "#/components/schemas/FeatureCollection"
+                  points:
+                    type: object
+                    $ref: "#/components/schemas/FeatureCollection"
   "/stops":
     get:
       parameters:

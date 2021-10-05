@@ -36,10 +36,15 @@ def healthcheck():
 
 
 def get_areas():
-    return FeatureCollection([
-        Feature(aoi.id, to_wgs84(to_shape(aoi.geom)), {'name': aoi.name})
-        for aoi in Aoi.query.all()
-    ])
+    areas = Aoi.query.all()
+    return {
+        'polygons': FeatureCollection([
+            Feature(area.id, to_wgs84(to_shape(area.geom)), {'name': area.name}) for area in areas
+        ]),
+        'points': FeatureCollection([
+            Feature(area.id, to_wgs84(to_shape(area.geom).centroid), {'name': area.name}) for area in areas
+        ])
+    }
 
 
 def get_stops(bbox):
