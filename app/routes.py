@@ -210,7 +210,7 @@ def routes():
     # Reproject them to be used with Shapely (leave the spherical versions to save to the DB later)
     start_projected, finish_projected = project(start), project(finish)
     prepared_routes, handles = [], []
-    with_alternatives = request.json.get('alternatives', True) and len(positions) == 2
+    with_alternatives = request.json.get('alternatives', True) and len(positions) == 2 and request.json['profile'] == 'driving-car'
     with_handles = request.json.get('handles', True)
     # Order intermediate positions along the route
     if len(positions) > 2:
