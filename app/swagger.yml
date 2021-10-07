@@ -277,21 +277,46 @@ paths:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/remainder":
     get:
-      summary: Return the remaining part of the route
-      description: "Returns the specified route without the part behind the driver's position"
-      operationId: app.routes.remainder
+      summary: Remainder
+      description: Get the currently remaining route part
+      operationId: app.routes.get_remainder
       parameters:
         - $ref: "#/components/parameters/routeID"
-        - $ref: "#/components/parameters/LatLon"
       responses:
         200:
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LineStringCoordinates"
-                # $ref: "#/components/schemas/Feature"
-                # geometryType: LineString
+                $ref: "#/components/schemas/Feature"
+                geometryType: LineString
+        404:
+          $ref: "#/components/responses/RouteNotFound"
+    post:
+      summary: Remainder
+      description: Crop the route to driver's current position and save this remainder to the DB
+      operationId: app.routes.post_remainder
+      parameters:
+        - $ref: "#/components/parameters/routeID"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                position:
+                  $ref: "#/components/schemas/Position"
+              required:
+                - position
+              additionalProperties: false
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feature"
+                geometryType: LineString
         404:
           $ref: "#/components/responses/RouteNotFound"
   "/routes/{route_id}/candidates":

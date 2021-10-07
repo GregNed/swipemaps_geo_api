@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import UUID
-from geoalchemy2 import Geometry, Geometry
+from geoalchemy2 import Geometry
 
 from app import db
 
@@ -16,6 +16,7 @@ class Route(db.Model):
     distance = db.Column(db.Float)
     duration = db.Column(db.Float)
     geom = db.Column(Geometry('LineString', srid=32637, spatial_index=False))
+    geom_remainder = db.Column(Geometry('LineString', srid=32637, spatial_index=False))
     is_handled = db.Column(db.Boolean, nullable=False, default=False)
     pickup_point = db.relationship('PickupPoint', backref='route', uselist=False, lazy=True)
     dropoff_point = db.relationship('DropoffPoint', backref='route', uselist=False, lazy=True)
@@ -66,8 +67,9 @@ class Aoi(db.Model):
         return f'<Area {self.name}>'
 
 
-# Create spatial indexes explicily since alembic dropoff those implied by GeoAlchemy
+# Create spatial indexes explicitly since alembic dropoff those implied by GeoAlchemy
 db.Index('idx_route_geom', Route.geom, postgresql_using='gist')
+db.Index('idx_route_geom_remainder', Route.geom_remainder, postgresql_using='gist')
 db.Index('idx_pickup_point_geom', PickupPoint.geom, postgresql_using='gist')
 db.Index('idx_dropoff_point_geom', DropoffPoint.geom, postgresql_using='gist')
 db.Index('idx_public_transport_stop_geom', PublicTransportStop.geom, postgresql_using='gist')

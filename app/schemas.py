@@ -6,4 +6,4 @@ class RouteSchema(ma.SQLAlchemyAutoSchema):
     """"""
     class Meta:
         model = Route
-        exclude = 'geom', 'pickup_point', 'dropoff_point'
+        exclude = 'geom', 'geom_remaining', 'pickup_point', 'dropoff_point'

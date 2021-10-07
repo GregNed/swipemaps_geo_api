@@ -139,13 +139,21 @@ def immitate(route_id):
     return Feature(geometry=to_wgs84(LineString(route_coords)))
 
 
-def remainder(route_id, position):
-    driver_route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
-    current_position = project(Point(map(float, position.split(',')[::-1])))
-    current_position_snapped = nearest_points(driver_route, current_position)[0]
-    route_passed_fraction = driver_route.project(current_position_snapped, normalized=True)
-    remaining_route = substring(driver_route, route_passed_fraction, 1, normalized=True)
-    return list(to_wgs84(remaining_route).coords)
+def get_remainder(route_id):
+    remainder = Route.query.get_or_404(route_id).geom_remainder
+    return Feature(route_id, to_wgs84(to_shape(remainder)))
+
+
+def post_remainder(route_id):
+    route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+    route_geom = to_shape(route.geom)
+    current_position = project(Point(request.json['position'][::-1]))
+    current_position_snapped = nearest_points(route_geom, current_position)[0]
+    route_passed_fraction = route_geom.project(current_position_snapped, normalized=True)
+    remaining_route = substring(route_geom, route_passed_fraction, 1, normalized=True)
+    route.geom_remainder = from_shape(remaining_route)
+    db.session.commit()
+    return Feature(route_id, to_wgs84(remaining_route))
 
 
 def suggest_pickup(route_id, position):
@@ -181,11 +189,13 @@ def walking_route(route_id):
     else:
         route['geometry'].insert(0, nearest_point)
     route_id = uuid4()
+    route_geom = project(LineString(route['geometry'])).wkt
     db.session.add(Route(
         id=route_id,
         user_id=request.json['user_id'],
         profile='foot-walking',
-        geom=project(LineString(route['geometry'])).wkt,
+        geom=route_geom,
+        geom_remainder=route_geom,
         distance=route['distance'],
         duration=route['duration']
     ))
@@ -279,11 +289,13 @@ def routes():
     if request.json.get('make_route') is False:
         route_id = uuid4()
         route_wgs84 = LineString([start, finish])
+        route_geom = project(route_wgs84).wkt
         db.session.add(Route(
             id=route_id,
             user_id=request.json['user_id'],
             profile=request.json['profile'],
-            geom=project(route_wgs84).wkt
+            geom=route_geom,
+            geom_remainder=route_geom
         ))
         routes = FeatureCollection([Feature(route_id, route_wgs84)])
     else:
@@ -292,13 +304,15 @@ def routes():
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
         for route, route_id in zip(all_routes, route_ids):
+            route_geom = project(LineString(route['geometry'])).wkt
             db.session.add(Route(
                 id=route_id,
                 user_id=request.json['user_id'],
                 profile=request.json['profile'],
                 distance=route['distance'],
                 duration=route['duration'],
-                geom=project(LineString(route['geometry'])).wkt,
+                geom=route_geom,
+                geom_remainder=route_geom,
                 is_handled=(with_handles and len(positions) > 2)
             ))
         if request.json['profile'] == 'driving-car' and with_handles:
@@ -352,43 +366,46 @@ def delete_discarded_routes(route_id, user_id):
 
 def get_candidates(route_id):
     target_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
-    target_start = func.ST_StartPoint(target_route.geom)
-    target_finish = func.ST_EndPoint(target_route.geom)
+    target_start = func.ST_StartPoint(target_route.geom_remainder)
+    target_finish = func.ST_EndPoint(target_route.geom_remainder)
     candidate_start = func.ST_StartPoint(Route.geom)
     candidate_finish = func.ST_EndPoint(Route.geom)
-    pickup_point = func.ST_LineLocatePoint(target_route.geom, candidate_start)
-    dropoff_point = func.ST_LineLocatePoint(target_route.geom, candidate_finish)
-    route_to_target = func.ST_ShortestLine(target_route.geom, candidate_start)
-    route_from_target = func.ST_ShortestLine(target_route.geom, candidate_finish)
-    common_part = func.ST_LineSubstring(target_route.geom, pickup_point, dropoff_point)
+    pickup_point = func.ST_LineLocatePoint(target_route.geom_remainder, candidate_start)
+    dropoff_point = func.ST_LineLocatePoint(target_route.geom_remainder, candidate_finish)
+    route_to_target = func.ST_ShortestLine(target_route.geom_remainder, candidate_start)
+    route_from_target = func.ST_ShortestLine(target_route.geom_remainder, candidate_finish)
+    common_part = func.ST_LineSubstring(target_route.geom_remainder, pickup_point, dropoff_point)
     candidate_routes = Route.query.filter(
         Route.id.in_(request.json['candidate_route_ids']),
         Route.user_id != target_route.user_id,
-        func.ST_Distance(candidate_start, target_route.geom) < app.config['CANDIDATE_DISTANCE_LIMIT'],
-        func.ST_Distance(candidate_finish, target_route.geom) < app.config['CANDIDATE_DISTANCE_LIMIT'],
+        func.ST_Distance(candidate_start, target_route.geom_remainder) < app.config['CANDIDATE_DISTANCE_LIMIT'],
+        func.ST_Distance(candidate_finish, target_route.geom_remainder) < app.config['CANDIDATE_DISTANCE_LIMIT'],
         func.ST_Distance(candidate_finish, target_finish) < func.ST_Distance(candidate_start, target_finish)
     )
     if target_route.profile == 'foot-walking':
         candidate_routes = candidate_routes.filter(Route.trip_id != None)
-    else:  # passenger's overall walk must be < their ride
+    else:
         candidate_routes = candidate_routes.filter(
+            # Filter out passengers left behind
+            func.ST_LineLocatePoint(target_route.geom_remainder, candidate_start) > 0,
+            # Passenger's overall walk must be < their ride
             func.ST_Length(common_part) >
             (func.ST_Length(route_to_target) + func.ST_Length(route_from_target))
-            * 1.5  # actual route / straight line coefficient
+            * 1.5,  # actual route / straight line coefficient
         )
     # Define attributes & weights for sorting: (candidate_route, target_route, weight)
     sortings = {
         'driving-car': (
             (candidate_start, target_start, .35),
             (candidate_finish, target_finish, .35),
-            (candidate_start, target_route.geom, .15),
-            (candidate_finish, target_route.geom, .15)
+            (candidate_start, target_route.geom_remainder, .15),
+            (candidate_finish, target_route.geom_remainder, .15)
         ),
         'foot-walking': (
             (candidate_start, target_start, .35),
             (candidate_finish, target_finish, .35),
-            (Route.geom, target_start, .15),
-            (Route.geom, target_finish, .15)
+            (Route.geom_remainder, target_start, .15),
+            (Route.geom_remainder, target_finish, .15)
         )
     }
     candidate_routes.order_by(sum([
