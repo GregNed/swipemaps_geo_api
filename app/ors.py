@@ -15,7 +15,7 @@ PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
 MOSCOW_CENTER = [55.754801, 37.622311]
 MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
 SUPPORTED_REGIONS = 'Moscow', 'Moscow Oblast', 'Irkutsk', 'Mari El'
-SUGGEST_ATTRS = 'name', 'label', 'housenumber', 'country', 'county', 'street'
+PELIAS_ATTRS = 'name', 'label', 'housenumber', 'country', 'county', 'street'
 
 
 def directions(positions: list[list[float]], profile: str, alternatives: bool = False, geometry: bool = True) -> list[dict]:
@@ -75,25 +75,30 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
 
 def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     """"""
+    lat, lon = location
+    focus_lat, focus_lon = focus
+    params = {
+        'api_key': API_KEY,
+        'point.lon': lon,
+        'point.lat': lat,
+        'layers': 'address',
+        'sources': 'openstreetmap',
+        'size': max_occurrences,
+        'focus.point.lon': focus_lon,
+        'focus.point.lat': focus_lat,
+        'boundary.country': 'RU',
+    }
+    res = requests.get(PELIAS_ENDPOINT + '/reverse', params=params)
+    res.raise_for_status()
     try:
-        lat, lon = location
-        focus_lat, focus_lon = focus
-        params = {
-            'api_key': API_KEY,
-            'point.lon': lon,
-            'point.lat': lat,
-            'layers': 'address',
-            'sources': 'openstreetmap',
-            'size': max_occurrences,
-            'focus.point.lon': focus_lon,
-            'focus.point.lat': focus_lat,
-            'boundary.country': 'RU',
+        result = res.json()['features'][0]
+        formatted_result = {
+            k: v for k, v in result['properties'].items() if k in PELIAS_ATTRS
         }
-        res = requests.get(f'{PELIAS_ENDPOINT}/reverse', params=params)
-        res.raise_for_status()
-        return res.json()['features'][0]['properties']['name']
+        formatted_result['id'] = int(result['properties']['id'].split('/')[1])
+        return formatted_result
     except IndexError:
-        return ''
+        return {}
 
 
 def suggest(text, focus=MOSCOW_CENTER):
@@ -114,5 +119,5 @@ def suggest(text, focus=MOSCOW_CENTER):
     return [{
         'id': feature['properties']['id'].split('/')[1],
         'geometry': feature['geometry'],
-        'properties': {k: v for k, v in feature['properties'].items() if k in SUGGEST_ATTRS}
+        'properties': {k: v for k, v in feature['properties'].items() if k in PELIAS_ATTRS}
     } for feature in results]
