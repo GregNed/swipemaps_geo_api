@@ -14,6 +14,8 @@ PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
 # The app is scoped to Moscow and the Moscow Region for now, so tune the service to focus on that area
 MOSCOW_CENTER = [55.754801, 37.622311]
 MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
+SUPPORTED_REGIONS = 'Moscow', 'Moscow Oblast', 'Irkutsk', 'Mari El'
+SUGGEST_ATTRS = 'name', 'label', 'housenumber', 'country', 'county', 'street'
 
 
 def directions(positions: list[list[float]], profile: str, alternatives: bool = False, geometry: bool = True) -> list[dict]:
@@ -49,11 +51,10 @@ def directions(positions: list[list[float]], profile: str, alternatives: bool = 
     return routes or abort(500, 'ORS failed to route between the requested locations')
 
 
-def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
+def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     """"""
     try:
         focus_lat, focus_lon = focus
-        nw, se = bbox
         params = {
             'api_key': API_KEY,
             'text': text,
@@ -63,25 +64,20 @@ def geocode(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
             'focus.point.lon': focus_lon,
             'focus.point.lat': focus_lat,
             'boundary.country': 'RU',
-            'boundary.rect.min_lon': nw[1],
-            'boundary.rect.min_lat': nw[0],
-            'boundary.rect.max_lon': se[1],
-            'boundary.rect.max_lat': se[0]
 
         }
-        res = requests.get(f'{PELIAS_ENDPOINT}/search', params=params)
+        res = requests.get(PELIAS_ENDPOINT + '/search', params=params)
         res.raise_for_status()
         return res.json()['features'][0]['geometry']['coordinates']
     except IndexError:
         return []
 
 
-def reverse_geocode(location, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrences=1):
+def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     """"""
     try:
         lat, lon = location
         focus_lat, focus_lon = focus
-        nw, se = bbox
         params = {
             'api_key': API_KEY,
             'point.lon': lon,
@@ -92,10 +88,6 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrence
             'focus.point.lon': focus_lon,
             'focus.point.lat': focus_lat,
             'boundary.country': 'RU',
-            'boundary.rect.min_lon': nw[1],
-            'boundary.rect.min_lat': nw[0],
-            'boundary.rect.max_lon': se[1],
-            'boundary.rect.max_lat': se[0],
         }
         res = requests.get(f'{PELIAS_ENDPOINT}/reverse', params=params)
         res.raise_for_status()
@@ -104,10 +96,9 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, bbox=MMO_BBOX, max_occurrence
         return ''
 
 
-def suggest(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX):
+def suggest(text, focus=MOSCOW_CENTER):
     """"""
     focus_lat, focus_lon = focus
-    nw, se = bbox
     params = {
         'api_key': API_KEY,
         'text': text,
@@ -116,18 +107,12 @@ def suggest(text, focus=MOSCOW_CENTER, bbox=MMO_BBOX):
         'focus.point.lon': focus_lon,
         'focus.point.lat': focus_lat,
         'boundary.country': 'RU',
-        'boundary.rect.min_lon': nw[1],
-        'boundary.rect.min_lat': nw[0],
-        'boundary.rect.max_lon': se[1],
-        'boundary.rect.max_lat': se[0]
     }
-    res = requests.get(f'{PELIAS_ENDPOINT}/autocomplete', params=params)
+    res = requests.get(PELIAS_ENDPOINT + '/autocomplete', params=params)
     res.raise_for_status()
+    results = filter(lambda i: i['properties']['region'] in SUPPORTED_REGIONS, res.json()['features'])
     return [{
+        'id': feature['properties']['id'].split('/')[1],
         'geometry': feature['geometry'],
-        'properties': {
-            'label': feature['properties']['label'],
-            'distance': feature['properties']['distance'],
-            'type': feature['properties']['layer']
-        }
-    } for feature in res.json()['features'] if feature['properties']['region'].startswith('Moscow')]
+        'properties': {k: v for k, v in feature['properties'].items() if k in SUGGEST_ATTRS}
+    } for feature in results]

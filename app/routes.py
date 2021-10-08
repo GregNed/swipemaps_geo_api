@@ -141,7 +141,7 @@ def immitate(route_id):
 
 def get_remainder(route_id):
     remainder = Route.query.get_or_404(route_id).geom_remainder
-    return Feature(route_id, to_wgs84(to_shape(remainder)))
+    return Feature(route_id, to_wgs84(to_shape(remainder)), {'distance': round(remainder.length)})
 
 
 def post_remainder(route_id):
@@ -150,10 +150,10 @@ def post_remainder(route_id):
     current_position = project(Point(request.json['position'][::-1]))
     current_position_snapped = nearest_points(route_geom, current_position)[0]
     route_passed_fraction = route_geom.project(current_position_snapped, normalized=True)
-    remaining_route = substring(route_geom, route_passed_fraction, 1, normalized=True)
-    route.geom_remainder = from_shape(remaining_route)
+    remainder = substring(route_geom, route_passed_fraction, 1, normalized=True)
+    route.geom_remainder = from_shape(remainder)
     db.session.commit()
-    return Feature(route_id, to_wgs84(remaining_route))
+    return Feature(route_id, to_wgs84(remainder), {'distance': round(remainder.length)})
 
 
 def suggest_pickup(route_id, position):
@@ -433,12 +433,6 @@ def reverse_geocode(position):
 
 def suggest(text):
     result = ors.suggest(text)
-    if result:
-        return FeatureCollection(
-            [Feature(
-                geometry=feature['geometry'],
-                properties=feature['properties']
-            ) for feature in result]
-        )
-    else:
+    if not result:
         abort(404, 'Nothing found; try a different text')
+    return FeatureCollection([Feature(f['id'], f['geometry'], f['properties']) for f in result])

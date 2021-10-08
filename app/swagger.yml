@@ -514,7 +514,7 @@ paths:
   "/suggest":
     get:
       summary: Find addresses or POIs that match the text
-      description: TODO
+      description: Direct Geocoding
       operationId: app.routes.suggest
       parameters:
         - $ref: "#/components/parameters/Text"
@@ -524,10 +524,8 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Feature"
-                  geometryType: Point
+                $ref: "#/components/schemas/FeatureCollection"
+                geometryType: Point
         400:
           description: "Please, specify what to search for"
         404:
