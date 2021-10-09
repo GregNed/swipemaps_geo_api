@@ -14,7 +14,7 @@ PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
 # The app is scoped to Moscow and the Moscow Region for now, so tune the service to focus on that area
 MOSCOW_CENTER = [55.754801, 37.622311]
 MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
-SUPPORTED_REGIONS = 'Moscow', 'Moscow Oblast', 'Irkutsk', 'Mari El'
+SUPPORTED_REGIONS = 'Moscow City', 'Moscow Oblast', 'Irkutsk', 'Mari El'
 PELIAS_ATTRS = 'name', 'label', 'housenumber', 'country', 'county', 'street'
 
 
