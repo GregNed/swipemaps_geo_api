@@ -11,14 +11,17 @@ from . import app
 API_KEY = os.getenv('ORS_API_KEY')
 ORS_ENDPOINT = os.getenv('ORS_ENDPOINT')
 PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
-# The app is scoped to Moscow and the Moscow Region for now, so tune the service to focus on that area
-MOSCOW_CENTER = [55.754801, 37.622311]
-MMO_BBOX = [[54.2556960, 35.1484940], [56.9585110, 40.2056880]]
 SUPPORTED_REGIONS = 'Moscow City', 'Moscow Oblast', 'Irkutsk', 'Mari El'
 PELIAS_ATTRS = 'name', 'label', 'housenumber', 'country', 'county', 'street'
+MOSCOW_CENTER = [55.754801, 37.622311]
 
 
-def directions(positions: list[list[float]], profile: str, alternatives: bool = False, geometry: bool = True) -> list[dict]:
+def directions(
+    positions: list[list[float]],
+    profile: str,
+    alternatives: bool = False,
+    geometry: bool = True
+) -> list[dict]:
     """"""
     client = ors.Client(base_url=ORS_ENDPOINT)
     args = {
