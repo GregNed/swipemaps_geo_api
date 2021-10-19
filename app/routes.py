@@ -1,9 +1,8 @@
 from uuid import uuid4
 
-import numpy as np
 import sqlalchemy
 from sqlalchemy import func
-from shapely.geometry import Point, LineString, MultiPoint
+from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points, substring, snap, linemerge, unary_union
 from geojson import Feature, FeatureCollection
 from flask import request, abort
@@ -73,7 +72,7 @@ def get_route_start_or_finish(route_id, point):
     index = 0 if point == 'start' else -1
     route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
     endpoint_wgs84 = to_wgs84(Point(route.coords[index]))
-    return list(endpoint_wgs84.coords[0])  # returning a tuple, as provided by Shapely, will raise an error
+    return list(endpoint_wgs84.coords[0])  # returning a tuple, as provided by Shapely, raises an error
 
 
 def is_passenger_arrived(route_id, position):
@@ -124,19 +123,6 @@ def post_dropoff_point(route_id):
         db.session.add(point)
     db.session.commit()
     return point.id, 201
-
-
-def immitate(route_id):
-    route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
-    route_coords = np.array(route.coords)
-    route_coords_delta = np.random.uniform(-20.0, 20.0, (len(route_coords), 2))
-    route_coords += route_coords_delta
-    points = [Point(position[::-1]) for position in request.json['positions']]
-    route_vertices = MultiPoint(route_coords)
-    points_snapped = [nearest_points(route_vertices, point)[0].coords[0] for point in points]
-    for new, old in zip(points, points_snapped):
-        route_coords = np.where(route_coords == old, new, route_coords)
-    return Feature(geometry=to_wgs84(LineString(route_coords)))
 
 
 def get_remainder(route_id):
@@ -209,7 +195,7 @@ def walking_route(route_id):
         })
 
 
-def routes():
+def post_route():
     """"""
     # Convert start, end and intermediate points from [lat, lon] to [lon, lat] format used in ORS & Shapely
     positions = [position[::-1] for position in request.json['positions']]
@@ -345,20 +331,40 @@ def get_route(route_id):
     return route_to_feature(route)
 
 
-def delete_discarded_routes(route_id, user_id):
-    count = Route.query.filter(
-        Route.user_id == user_id,
-        Route.id != route_id,
-        Route.trip_id == None
-    ).delete()
-    if count == 0:
-        abort(404, 'User and route combination not found')
-    Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).trip_id = request.json['trip_id']
+def put_route(route_id):
+    route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)
+    if request.json.get('trip_id'):
+        route.trip_id = request.json['trip_id']
+    if request.json.get('positions'):
+        positions = [position[::-1] for position in request.json['positions']]
+        new_route = ors.directions(positions, 'driving-car')[0]
+        route_geom = LineString(new_route['geometry'])
+        route.geom = route.geom_remainder = route_geom.wkt
+        route.distance = new_route['distance']
+        route.duration = new_route['duration']
     try:
         db.session.commit()
-    except sqlalchemy.exc.IntegrityError as e:
+    except sqlalchemy.exc.IntegrityError:
         db.session.rollback()
         abort(400, 'Such trip id already exists in the database')
+    except Exception as e:
+        db.session.rollback()
+        abort(500, str(e))
+    return Feature(
+        route_id,
+        to_shape(route.geom),
+        {
+            'distance': route.distance,
+            'duration': route.duration
+        }
+    )
+
+
+def delete_route(route_id):
+    route = Route.query.get_or_404(route_id)
+    db.session.delete(route)
+    try:
+        db.session.commit()
     except Exception as e:
         db.session.rollback()
         abort(500, str(e))

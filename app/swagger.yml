@@ -96,7 +96,7 @@ paths:
                 minimum: 0
   "/routes":
     post:
-      operationId: app.routes.routes
+      operationId: app.routes.post_route
       summary: Routing
       description: |
         Build a car or walking route through the specified locations, and save it to the database.
@@ -181,8 +181,7 @@ paths:
     post:
       operationId: app.routes.walking_route
       summary: Make walking route
-      description: |
-        Build a pedestrian route using from the specified location to another route or vice versa
+      description: Make a walking route from the specified location to another route or vice versa
       requestBody:
         content:
           application/json:
@@ -215,66 +214,31 @@ paths:
         404:
           $ref: "#/components/responses/RouteNotFound"
     put:
-      summary: Select Route
-      description: Delete all user's route other than specified by `route_id` and assign it `trip_id`
-      operationId: app.routes.delete_discarded_routes
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            $ref: "#/components/schemas/UUID"
+      summary: Update Route
+      description: Update attributes or geometry of a route
+      operationId: app.routes.put_route
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              properties:
-                trip_id:
-                  $ref: "#/components/schemas/UUID"
-              required:
-                - trip_id
-              additionalProperties: false
       responses:
         204:
-          description: |
-            The selected route was successfully updated. The user's other routes were deleted.
+          description: The route was successfully updated
         400:
-          description: Such `trip_id` already exist in the database
+          description: Body missing/duplicate Trip ID/invalid coordinates
         404:
-          description: No such route and user combination
-  "/routes/{route_id}/immitate":
-    post:
-      summary: Immitate a driver's route
-      description: Distort an existing route by simulating GPS inaccuracy
-      operationId: app.routes.immitate
-      parameters:
-        - $ref: "#/components/parameters/routeID"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                positions:
-                  type: array
-                  description: Arbitrary positions that the immitated route should include
-                  items:
-                    $ref: "#/components/schemas/Position"
-              required:
-                - positions
-              additionalProperties: false
+          description: No such route in the database
+    delete:
+      summary: Delete Route
+      description: Delete a route from the database
+      operationId: app.routes.delete_route
       responses:
-        200:
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Feature"
-                geometryType: LineString
+        204:
+          description: The route was successfully deleted
         404:
-          $ref: "#/components/responses/RouteNotFound"
+          description: No such route in the database
   "/routes/{route_id}/remainder":
     get:
       summary: Remainder
