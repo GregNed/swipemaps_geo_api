@@ -88,6 +88,15 @@ def get_pickup_point(route_id):
     return (f'Route {route_id} has no pick-up point', 204)
 
 
+def delete_pickup_point(route_id):
+    point = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).pickup_point
+    if point:
+        db.session.delete(point)
+        db.session.commit()
+    else:
+        abort(404, f'Route {route_id} has no pick-up point')
+
+
 def post_pickup_point(route_id):
     geom = project(Point(request.json['position'][::-1])).wkt
     route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE)

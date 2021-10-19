@@ -393,11 +393,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UUID"
-          links:
-            Get the point:
-              operationId: app.routes.get_pickup_point
-              parameters:
-                point_id: $response.body
+    delete:
+      summary: Delete Pick-Up Point
+      description: Delete a pick-up point from a passenger's route
+      operationId: app.routes.delete_pickup_point
+      responses:
+        204:
+          description: Success
+        404:
+          description: Either route not found or it has no point
   "/routes/{route_id}/dropoff":
     parameters:
       - $ref: "#/components/parameters/routeID"
