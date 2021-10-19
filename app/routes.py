@@ -357,7 +357,7 @@ def put_route(route_id):
             'distance': route.distance,
             'duration': route.duration
         }
-    )
+    ) if request.json.get('positions') else ('', 204)
 
 
 def delete_route(route_id):

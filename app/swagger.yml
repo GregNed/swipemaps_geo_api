@@ -224,8 +224,15 @@ paths:
             schema:
               type: object
       responses:
+        200:
+          description: Route geometry was successfully updates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feature"
+                geometryType: LineString
         204:
-          description: The route was successfully updated
+          description: Trip ID was successfully updated
         400:
           description: Body missing/duplicate Trip ID/invalid coordinates
         404:
@@ -574,11 +581,6 @@ components:
             - Polygon
             - MultiPolygon
             - GeometryCollection
-        bbox:
-          description: Bounding box a.k.a extent
-          type: array
-          items:
-            type: number
       required:
         - type
       discriminator:
