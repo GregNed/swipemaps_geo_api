@@ -338,8 +338,8 @@ def put_route(route_id):
     if request.json.get('positions'):
         positions = [position[::-1] for position in request.json['positions']]
         new_route = ors.directions(positions, 'driving-car')[0]
-        route_geom = project(LineString(new_route['geometry']))
-        route.geom = route.geom_remainder = route_geom.wkt
+        route_geom = LineString(new_route['geometry'])
+        route.geom = route.geom_remainder = project(route_geom).wkt
         route.distance = new_route['distance']
         route.duration = new_route['duration']
     try:
@@ -352,7 +352,7 @@ def put_route(route_id):
         abort(500, str(e))
     return Feature(
         route_id,
-        to_shape(route.geom),
+        route_geom,
         {
             'distance': route.distance,
             'duration': route.duration
