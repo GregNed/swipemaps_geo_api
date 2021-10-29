@@ -30,8 +30,8 @@ paths:
                     $ref: "#/components/schemas/ServiceStateString"
                   ors:
                     $ref: "#/components/schemas/ServiceStateString"
-                  pelias:
-                    $ref: "#/components/schemas/ServiceStateString"
+                  # pelias:
+                  #   $ref: "#/components/schemas/ServiceStateString"
   "/areas":
     get:
       operationId: app.routes.get_areas

@@ -27,10 +27,10 @@ def healthcheck():
         ors.directions([[37.619188, 55.759128], [37.626247, 55.759426]], 'driving-car')
     except:
         response['ors'] = 'unavailable'
-    try:
-        ors.geocode('Тверская 1')
-    except:
-        response['pelias'] = 'unavailable'
+    # try:
+    #     ors.geocode('Тверская 1')
+    # except:
+    #     response['pelias'] = 'unavailable'
     return response
 
 
