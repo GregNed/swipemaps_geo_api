@@ -13,8 +13,8 @@ RUN pip install --upgrade pip
 
 WORKDIR app/
 
-HEALTHCHECK --start-period=10s --interval=3s --timeout=3s --retries=3 \
-    CMD ["curl",  "http://localhost:5000"]
+HEALTHCHECK --start-period=5s --interval=5s --timeout=2s --retries=3 \
+    CMD ["curl",  "http://localhost:80"]
 
 COPY requirements.txt .
 
@@ -22,4 +22,4 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-CMD ["gunicorn", "run", "--bind=0.0.0.0:5000", "-w 4", "app:app"]
+CMD ["gunicorn", "run", "--bind=0.0.0.0:80", "-w 4", "app:app"]
