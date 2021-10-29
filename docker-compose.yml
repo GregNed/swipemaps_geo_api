@@ -13,12 +13,6 @@ services:
         condition: service_healthy
       pg:
         condition: service_started
-  nginx:
-    image: registry.gitlab.com/dangoclub/nginx
-    ports: 
-      - 80:80
-    depends_on:
-      - api
   ors:
     image: registry.gitlab.com/dangoclub/ors
     restart: always
