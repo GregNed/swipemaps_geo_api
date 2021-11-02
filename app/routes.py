@@ -431,23 +431,24 @@ def get_candidates(route_id):
 
 
 def geocode(text):
-    result = ors.geocode(text)
-    if result:
-        return result
-    else:
+    try:
+        return ors.geocode(text)
+    except IndexError:
         abort(404, 'Nothing found; try a different text')
 
 
 def reverse_geocode(position):
-    address = ors.reverse_geocode(map(float, position.split(',')))
-    if address:
-        return address
-    else:
+    try:
+        return ors.reverse_geocode(map(float, position.split(',')))
+    except IndexError:
         abort(404, 'Nothing found')
 
 
 def suggest(text):
     result = ors.suggest(text)
-    if not result:
+    if result:
+        return FeatureCollection([
+            Feature(f['id'], f['geometry'], f['properties']) for f in result
+        ])
+    else:
         abort(404, 'Nothing found; try a different text')
-    return FeatureCollection([Feature(f['id'], f['geometry'], f['properties']) for f in result])

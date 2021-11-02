@@ -488,8 +488,8 @@ paths:
           $ref: "#/components/responses/RouteNotFound"
   "/suggest":
     get:
-      summary: Find addresses or POIs that match the text
-      description: Direct Geocoding
+      summary: Suggest/Auto-complete
+      description: Find addresses or POIs that (partially) match the text
       operationId: app.routes.suggest
       parameters:
         - $ref: "#/components/parameters/Text"
@@ -507,8 +507,8 @@ paths:
           description: "Nothing found; try a different text"
   "/geocode":
     get:
-      summary: Get coordinates of an address identified by text
-      description: TODO
+      summary: Geocoding
+      description: Get coordinates of an address identified by text
       operationId: app.routes.geocode
       parameters:
         - $ref: "#/components/parameters/Text"
@@ -518,15 +518,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Position"
+                $ref: "#/components/schemas/Feature"
         400:
-          description: "`text` must be at least two characters long"
+          description: Bad request
         404:
           description: Nothing found; try a different text
   "/reverse":
     get:
-      summary: Get an address or POI at position
-      description: Reverse Geocoding (address by location)
+      summary: Reverse Geocoding
+      description: Get an address or POI at position
       operationId: app.routes.reverse_geocode
       parameters:
         - $ref: "#/components/parameters/LatLon"

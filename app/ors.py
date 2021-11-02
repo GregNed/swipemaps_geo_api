@@ -56,24 +56,23 @@ def directions(
 
 def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     """"""
-    try:
-        focus_lat, focus_lon = focus
-        params = {
-            'api_key': API_KEY,
-            'text': text,
-            'layers': 'address,venue',
-            'size': max_occurrences,
-            'sources': 'openstreetmap',
-            'focus.point.lon': focus_lon,
-            'focus.point.lat': focus_lat,
-            'boundary.country': 'RU',
+    focus_lat, focus_lon = focus
+    params = {
+        'api_key': API_KEY,
+        'text': text,
+        'layers': 'address,venue',
+        'size': max_occurrences,
+        'sources': 'openstreetmap',
+        'focus.point.lon': focus_lon,
+        'focus.point.lat': focus_lat,
+        'boundary.country': 'RU',
 
-        }
-        res = requests.get(PELIAS_ENDPOINT + '/search', params=params)
-        res.raise_for_status()
-        return res.json()['features'][0]['geometry']['coordinates']
-    except IndexError:
-        return []
+    }
+    res = requests.get(PELIAS_ENDPOINT + '/search', params=params)
+    res.raise_for_status()
+    feature = res.json()['features'][0]
+    feature['properties'] = {k: v for k, v in feature['properties'].items() if k in PELIAS_ATTRS}
+    return feature
 
 
 def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
@@ -93,15 +92,12 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     }
     res = requests.get(PELIAS_ENDPOINT + '/reverse', params=params)
     res.raise_for_status()
-    try:
-        result = res.json()['features'][0]
-        formatted_result = {
-            k: v for k, v in result['properties'].items() if k in PELIAS_ATTRS
-        }
-        formatted_result['id'] = int(result['properties']['id'].split('/')[1])
-        return formatted_result
-    except IndexError:
-        return {}
+    result = res.json()['features'][0]
+    formatted_result = {
+        k: v for k, v in result['properties'].items() if k in PELIAS_ATTRS
+    }
+    formatted_result['id'] = int(result['properties']['id'].split('/')[1])
+    return formatted_result
 
 
 def suggest(text, focus=MOSCOW_CENTER):
