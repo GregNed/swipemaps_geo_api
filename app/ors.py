@@ -92,12 +92,10 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     }
     res = requests.get(PELIAS_ENDPOINT + '/reverse', params=params)
     res.raise_for_status()
-    result = res.json()['features'][0]
-    formatted_result = {
-        k: v for k, v in result['properties'].items() if k in PELIAS_ATTRS
-    }
-    formatted_result['id'] = int(result['properties']['id'].split('/')[1])
-    return formatted_result
+    feature = res.json()['features'][0]
+    feature['id'] = int(feature['properties']['id'].split('/')[1])
+    feature['properties'] = {k: v for k, v in feature['properties'].items() if k in PELIAS_ATTRS}
+    return feature
 
 
 def suggest(text, focus=MOSCOW_CENTER):

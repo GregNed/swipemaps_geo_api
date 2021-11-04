@@ -536,22 +536,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                  name:
-                    type: string
-                  label:
-                    type: string
-                  country:
-                    type: string
-                  county:
-                    type: string
-                  street:
-                    type: string
-                  housenumber:
-                    type: string
+                $ref: "#/components/schemas/Feature"
         400:
           description: "`position` must a valid lat,lon string"
         404:
