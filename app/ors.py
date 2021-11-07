@@ -8,7 +8,6 @@ from . import app
 
 
 # Connection constants
-API_KEY = os.getenv('ORS_API_KEY')
 ORS_ENDPOINT = os.getenv('ORS_ENDPOINT')
 PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
 SUPPORTED_REGIONS = 'Moscow City', 'Moscow Oblast', 'Irkutsk', 'Mari El'
@@ -58,7 +57,6 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     """"""
     focus_lat, focus_lon = focus
     params = {
-        'api_key': API_KEY,
         'text': text,
         'layers': 'address,venue',
         'size': max_occurrences,
@@ -80,7 +78,6 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     lat, lon = location
     focus_lat, focus_lon = focus
     params = {
-        'api_key': API_KEY,
         'point.lon': lon,
         'point.lat': lat,
         'layers': 'address',
@@ -102,7 +99,6 @@ def suggest(text, focus=MOSCOW_CENTER):
     """"""
     focus_lat, focus_lon = focus
     params = {
-        'api_key': API_KEY,
         'text': text,
         'layers': 'address,venue',
         'sources': 'openstreetmap',
