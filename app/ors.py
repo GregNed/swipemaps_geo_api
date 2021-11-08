@@ -3,6 +3,7 @@ import os
 import requests
 import openrouteservice as ors
 from flask import abort
+from transliterate import translit
 
 from . import app
 
@@ -11,7 +12,6 @@ from . import app
 ORS_ENDPOINT = os.getenv('ORS_ENDPOINT')
 PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
 SUPPORTED_REGIONS = 'Moscow City', 'Moscow Oblast', 'Irkutsk', 'Mari El'
-PELIAS_ATTRS = 'name', 'label', 'housenumber', 'country', 'county', 'street'
 MOSCOW_CENTER = [55.754801, 37.622311]
 
 
@@ -69,7 +69,13 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     res = requests.get(PELIAS_ENDPOINT + '/search', params=params)
     res.raise_for_status()
     feature = res.json()['features'][0]
-    feature['properties'] = {k: v for k, v in feature['properties'].items() if k in PELIAS_ATTRS}
+    feature['properties'] = {
+        'address': feature['properties']['name'],
+        'locality': (
+            'Moscow' if 'Moscow' in feature['properties']['label']
+            else translit(feature['properties']['county'])
+        )
+    }
     return feature
 
 
@@ -91,7 +97,13 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     res.raise_for_status()
     feature = res.json()['features'][0]
     feature['id'] = int(feature['properties']['id'].split('/')[1])
-    feature['properties'] = {k: v for k, v in feature['properties'].items() if k in PELIAS_ATTRS}
+    feature['properties'] = {
+        'address': feature['properties']['name'],
+        'locality': (
+            'Moscow' if 'Moscow' in feature['properties']['label']
+            else translit(feature['properties']['county'])
+        )
+    }
     return feature
 
 
@@ -108,9 +120,18 @@ def suggest(text, focus=MOSCOW_CENTER):
     }
     res = requests.get(PELIAS_ENDPOINT + '/autocomplete', params=params)
     res.raise_for_status()
-    results = filter(lambda i: i['properties']['region'] in SUPPORTED_REGIONS, res.json()['features'])
+    results = filter(
+        lambda i: i['properties']['region'] in SUPPORTED_REGIONS,
+        res.json()['features']
+    )
     return [{
         'id': feature['properties']['id'].split('/')[1],
         'geometry': feature['geometry'],
-        'properties': {k: v for k, v in feature['properties'].items() if k in PELIAS_ATTRS}
+        'properties': {
+            'address': feature['properties']['name'],
+            'locality': (
+                'Moscow' if 'Moscow' in feature['properties']['label']
+                else translit(feature['properties']['county'])
+            )
+        }
     } for feature in results]
