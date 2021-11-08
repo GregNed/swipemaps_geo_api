@@ -72,7 +72,7 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     feature['properties'] = {
         'address': feature['properties']['name'],
         'locality': (
-            'Moscow' if 'Moscow' in feature['properties']['label']
+            'Москва' if 'Moscow' in feature['properties']['label']
             else translit(feature['properties']['county'], 'ru')
         )
     }
@@ -100,7 +100,7 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     feature['properties'] = {
         'address': feature['properties']['name'],
         'locality': (
-            'Moscow' if 'Moscow' in feature['properties']['label']
+            'Москва' if 'Moscow' in feature['properties']['label']
             else translit(feature['properties']['county'], 'ru')
         )
     }
@@ -130,7 +130,7 @@ def suggest(text, focus=MOSCOW_CENTER):
         'properties': {
             'address': feature['properties']['name'],
             'locality': (
-                'Moscow' if 'Moscow' in feature['properties']['label']
+                'Москва' if 'Moscow' in feature['properties']['label']
                 else translit(feature['properties']['county'], 'ru')
             )
         }
