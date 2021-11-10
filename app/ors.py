@@ -70,7 +70,7 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     feature = res.json()['features'][0]
     feature['properties'] = {
         'address': feature['properties']['name'],
-        'locality': feature['properties']['locality']
+        'locality': feature['properties'].get('locality') or feature['properties'].get('region')
     }
     return feature
 
@@ -96,7 +96,7 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     feature['id'] = int(feature['properties']['id'].split('/')[1])
     feature['properties'] = {
         'address': feature['properties']['name'],
-        'locality': feature['properties']['locality']
+        'locality': feature['properties'].get('locality') or feature['properties'].get('region')
     }
     return feature
 
@@ -123,6 +123,6 @@ def suggest(text, focus=MOSCOW_CENTER):
         'geometry': feature['geometry'],
         'properties': {
             'address': feature['properties']['name'],
-            'locality': feature['properties']['locality']
+            'locality': feature['properties'].get('locality') or feature['properties'].get('region')
         }
     } for feature in results]
