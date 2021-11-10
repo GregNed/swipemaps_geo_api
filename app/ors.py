@@ -3,7 +3,6 @@ import os
 import requests
 import openrouteservice as ors
 from flask import abort
-from transliterate import translit
 
 from . import app
 
@@ -58,23 +57,20 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     focus_lat, focus_lon = focus
     params = {
         'text': text,
-        'layers': 'address,venue',
+        'layers': 'address,venue,street,locality',
         'size': max_occurrences,
         'sources': 'openstreetmap',
         'focus.point.lon': focus_lon,
         'focus.point.lat': focus_lat,
         'boundary.country': 'RU',
-
+        'lang': 'ru',
     }
     res = requests.get(PELIAS_ENDPOINT + '/search', params=params)
     res.raise_for_status()
     feature = res.json()['features'][0]
     feature['properties'] = {
         'address': feature['properties']['name'],
-        'locality': (
-            'Москва' if 'Moscow' in feature['properties']['label']
-            else translit(feature['properties']['county'], 'ru')
-        )
+        'locality': feature['properties']['locality']
     }
     return feature
 
@@ -86,12 +82,13 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     params = {
         'point.lon': lon,
         'point.lat': lat,
-        'layers': 'address',
+        'layers': 'address,venue',
         'sources': 'openstreetmap',
         'size': max_occurrences,
         'focus.point.lon': focus_lon,
         'focus.point.lat': focus_lat,
         'boundary.country': 'RU',
+        'lang': 'ru',
     }
     res = requests.get(PELIAS_ENDPOINT + '/reverse', params=params)
     res.raise_for_status()
@@ -99,10 +96,7 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
     feature['id'] = int(feature['properties']['id'].split('/')[1])
     feature['properties'] = {
         'address': feature['properties']['name'],
-        'locality': (
-            'Москва' if 'Moscow' in feature['properties']['label']
-            else translit(feature['properties']['county'], 'ru')
-        )
+        'locality': feature['properties']['locality']
     }
     return feature
 
@@ -112,7 +106,7 @@ def suggest(text, focus=MOSCOW_CENTER):
     focus_lat, focus_lon = focus
     params = {
         'text': text,
-        'layers': 'address,venue',
+        'layers': 'address,venue,street,locality',
         'sources': 'openstreetmap',
         'focus.point.lon': focus_lon,
         'focus.point.lat': focus_lat,
@@ -129,9 +123,6 @@ def suggest(text, focus=MOSCOW_CENTER):
         'geometry': feature['geometry'],
         'properties': {
             'address': feature['properties']['name'],
-            'locality': (
-                'Москва' if 'Moscow' in feature['properties']['label']
-                else translit(feature['properties']['county'], 'ru')
-            )
+            'locality': feature['properties']['locality']
         }
     } for feature in results]
