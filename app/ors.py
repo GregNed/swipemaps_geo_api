@@ -57,7 +57,7 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     focus_lat, focus_lon = focus
     params = {
         'text': text,
-        'layers': 'address,venue,street,locality',
+        'layers': 'address,venue,locality',
         'size': max_occurrences,
         'sources': 'openstreetmap',
         'focus.point.lon': focus_lon,
@@ -106,7 +106,7 @@ def suggest(text, focus=MOSCOW_CENTER):
     focus_lat, focus_lon = focus
     params = {
         'text': text,
-        'layers': 'address,venue,street,locality',
+        'layers': 'address,venue,locality',
         'sources': 'openstreetmap',
         'focus.point.lon': focus_lon,
         'focus.point.lat': focus_lat,
