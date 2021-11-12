@@ -2,12 +2,12 @@ version: "3.9"
 services:
   api:
     image: registry.gitlab.com/dangoclub/geo
-    command: sh -c "flask db upgrade && gunicorn -b=0.0.0.0:80 -w 4 app:app"
+    command: sh -c "flask db upgrade && gunicorn -b=0.0.0.0:32812 -w 4 app:app"
     restart: always
     env_file:
       - .env
     ports:
-      - "80:80"
+      - "10.0.0.3:14098:32812"
     depends_on:
       ors:
         condition: service_healthy
