@@ -9,6 +9,7 @@ from . import app
 
 # Connection constants
 ORS_ENDPOINT = os.getenv('ORS_ENDPOINT')
+ORS_API_KEY = os.getenv('ORS_API_KEY', '')
 PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
 SUPPORTED_REGIONS = 'Moscow City', 'Moscow Oblast', 'Irkutsk', 'Mari El'
 MOSCOW_CENTER = [55.754801, 37.622311]
@@ -21,7 +22,7 @@ def directions(
     geometry: bool = True
 ) -> list[dict]:
     """"""
-    client = ors.Client(base_url=ORS_ENDPOINT)
+    client = ors.Client(base_url=ORS_ENDPOINT, key=ORS_API_KEY)
     args = {
         'profile': profile,
         'instructions': False,
