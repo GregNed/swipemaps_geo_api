@@ -11,6 +11,7 @@ from . import app
 ORS_ENDPOINT = os.getenv('ORS_ENDPOINT')
 ORS_API_KEY = os.getenv('ORS_API_KEY', '')
 PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
+PELIAS_API_KEY = os.getenv('PELIAS_API_KEY', '')
 SUPPORTED_REGIONS = 'Moscow City', 'Moscow Oblast', 'Irkutsk', 'Mari El'
 MOSCOW_CENTER = [55.754801, 37.622311]
 
@@ -65,6 +66,7 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
         'focus.point.lat': focus_lat,
         'boundary.country': 'RU',
         'lang': 'ru',
+        'api_key': PELIAS_API_KEY
     }
     res = requests.get(PELIAS_ENDPOINT + '/search', params=params)
     res.raise_for_status()
@@ -90,6 +92,7 @@ def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
         'focus.point.lat': focus_lat,
         'boundary.country': 'RU',
         'lang': 'ru',
+        'api_key': PELIAS_API_KEY
     }
     res = requests.get(PELIAS_ENDPOINT + '/reverse', params=params)
     res.raise_for_status()
@@ -112,6 +115,7 @@ def suggest(text, focus=MOSCOW_CENTER):
         'focus.point.lon': focus_lon,
         'focus.point.lat': focus_lat,
         'boundary.country': 'RU',
+        'api_key': PELIAS_API_KEY
     }
     res = requests.get(PELIAS_ENDPOINT + '/autocomplete', params=params)
     res.raise_for_status()
