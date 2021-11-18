@@ -9,7 +9,7 @@ from flask import request, abort
 from geoalchemy2.shape import from_shape, to_shape
 
 from app import app, db, ors
-from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop, Aoi
+from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop, Aoi, Road
 from app.helpers import project, to_wgs84, haversine, route_to_feature
 
 
@@ -27,11 +27,23 @@ def healthcheck():
         ors.directions([[37.619188, 55.759128], [37.626247, 55.759426]], 'driving-car')
     except:
         response['ors'] = 'unavailable'
-    # try:
-    #     ors.geocode('Тверская 1')
-    # except:
-    #     response['pelias'] = 'unavailable'
+    try:
+        ors.geocode('Тверская 1')
+    except:
+        response['pelias'] = 'unavailable'
     return response
+
+
+def get_roads(position, radius):
+    position = project(Point(map(float, position.split(',')[::-1])))
+    roads = Road.query.filter(func.ST_DWithin(Road.geom, from_shape(position, PROJECTION), radius))
+    return FeatureCollection([
+        Feature(
+            road.id,
+            to_wgs84(to_shape(road.geom)),
+            {'name': road.name, 'type': road.type}
+        ) for road in roads
+    ])
 
 
 def get_areas():

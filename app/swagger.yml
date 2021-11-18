@@ -30,8 +30,29 @@ paths:
                     $ref: "#/components/schemas/ServiceStateString"
                   ors:
                     $ref: "#/components/schemas/ServiceStateString"
-                  # pelias:
-                  #   $ref: "#/components/schemas/ServiceStateString"
+                  pelias:
+                    $ref: "#/components/schemas/ServiceStateString"
+  "/roads":
+    get:
+      operationId: app.routes.get_roads
+      summary: Get Nearby Roads
+      description: Get all roads within the specified radius from the specified point
+      parameters:
+        - $ref: "#/components/parameters/LatLon"
+        - name: radius
+          in: query
+          required: True
+          schema:
+            type: number
+            minimum: 0
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: "#/components/schemas/FeatureCollection"
   "/areas":
     get:
       operationId: app.routes.get_areas
