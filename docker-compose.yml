@@ -3,7 +3,7 @@ services:
   api:
     image: registry.gitlab.com/dangoclub/geo
     command: sh -c "flask db upgrade && gunicorn -b=0.0.0.0:5000 -w 4 app:app"
-    restart: unless-stopped
+    restart: on-failure:3
     env_file:
       - .env
     ports:
@@ -15,10 +15,10 @@ services:
         condition: service_started
   ors:
     image: registry.gitlab.com/dangoclub/ors
-    restart: unless-stopped
+    restart: on-failure:1
   pg:
     image: registry.gitlab.com/dangoclub/postgis
-    restart: unless-stopped
+    restart: on-failure:1
     build:
       context: .
       args:
@@ -30,5 +30,5 @@ services:
       - AUTOHEAL_CONTAINER_LABEL=all
     volumes: 
       - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+    restart: on-failure:1
     
