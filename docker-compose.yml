@@ -1,4 +1,7 @@
 version: '3.9'
+volumes:
+  pg_data:
+  pg_config:
 services:
   api:
     image: registry.gitlab.com/dangoclub/geo
@@ -19,11 +22,9 @@ services:
   pg:
     image: registry.gitlab.com/dangoclub/postgis
     restart: on-failure:1
-    build:
-      context: .
-      args:
-        POSTGRES_USER: $POSTGRES_USER
-        POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - pg_config:/etc/postgresql
   autoheal:
     image: willfarrell/autoheal
     environment:
