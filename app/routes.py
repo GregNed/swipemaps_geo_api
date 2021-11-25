@@ -10,7 +10,7 @@ from geoalchemy2.shape import from_shape, to_shape
 
 from app import app, db, ors
 from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop, Aoi, Road
-from app.helpers import project, to_wgs84, haversine, route_to_feature
+from app.helpers import project, to_wgs84, haversine, route_to_feature, parse_lat_lon
 
 
 PROJECTION = app.config['PROJECTION']  # to save some typing and avoid typos
@@ -18,6 +18,7 @@ ROUTE_NOT_FOUND_MESSAGE = 'No such route in the database :-('
 
 
 def healthcheck():
+    """Display the availablity status of all involved services."""
     response = {service: 'ok' for service in ('server', 'postgres', 'ors', 'pelias')}
     try:
         Route.query.first()
@@ -34,8 +35,9 @@ def healthcheck():
     return response
 
 
-def get_roads(position, radius):
-    position = project(Point(map(float, position.split(',')[::-1])))
+def get_roads(position: str, radius: int):
+    """Get roads (as GeoJSON) within <radius> from <position>."""
+    position = parse_lat_lon(position)
     roads = Road.query.filter(func.ST_DWithin(Road.geom, from_shape(position, PROJECTION), radius))
     return FeatureCollection([
         Feature(
@@ -77,6 +79,7 @@ def get_stops(bbox):
 
 
 def distance():
+    """Computes distance on a sphere between two points."""
     return round(haversine(*request.json['positions']))
 
 
@@ -89,7 +92,7 @@ def get_route_start_or_finish(route_id, point):
 
 def is_passenger_arrived(route_id, position):
     route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
-    driver_position = project(Point(map(float, position.split(',')[::-1])))
+    driver_position = parse_lat_lon(position)
     return driver_position.distance(route) < app.config['DROPOFF_RADIUS']
 
 
@@ -166,7 +169,7 @@ def post_remainder(route_id):
 def suggest_pickup(route_id, position):
     driver_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom
     driver_route_shape = to_shape(driver_route)
-    passenger_start = project(Point(map(float, position.split(',')[::-1])))
+    passenger_start = parse_lat_lon(position)
     # Identify the closest point on the driver's route
     nearest_point = nearest_points(driver_route_shape, passenger_start)[0]
     radius = min(passenger_start.distance(nearest_point), app.config['PICKUP_MAX_RADIUS'])

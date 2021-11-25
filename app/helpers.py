@@ -1,47 +1,48 @@
 import math
+from typing import Sequence
 
 import pyproj
 from geojson import Feature
 from geoalchemy2.shape import to_shape
-from shapely.geometry import Polygon
+from shapely.geometry import Point
+from shapely.ops import transform
 
 from app import app
 from app.schemas import RouteSchema
+from app.models import Route
 
 
 route_schema = RouteSchema()
-transform = pyproj.Transformer.from_crs(4326, app.config['PROJECTION'], always_xy=True).transform
+_project = pyproj.Transformer.from_crs(4326, app.config['PROJECTION'], always_xy=True).transform
+_to_wgs84 = pyproj.Transformer.from_crs(app.config['PROJECTION'], 4326, always_xy=True).transform
 
-
-# These two functions transform a.k.a reproject geographic coords to planar
-# Although most of the code is repeated, I chose to keep them separate so their
-# signature be more 'clear' (no direction parameter, just two obviously named funcs)
 
 def project(shape):
-    if shape.is_empty:
-        return shape
-    geometry_type = type(shape)
-    if isinstance(shape, Polygon):
-        shape = shape.exterior
-    xx, yy = transform(*shape.xy, direction='FORWARD')
-    return geometry_type(zip(xx.tolist(), yy.tolist()))
+    """Project spherical coordinates."""
+    return shape if shape.is_empty else transform(_project, shape)
 
 
 def to_wgs84(shape):
-    if shape.is_empty:
-        return shape
-    geometry_type = type(shape)
-    if isinstance(shape, Polygon):
-        shape = shape.exterior
-    xx, yy = transform(*shape.xy, direction='INVERSE')
-    return geometry_type(zip(xx.tolist(), yy.tolist()))
+    "Transform planar coordinates to spherical (WGS84)."
+    return shape if shape.is_empty else transform(_to_wgs84, shape)
 
 
-def haversine(from_, to_):
+def parse_lat_lon(lat_lon: str) -> Point:
+    """Convert coordinates passed as a query parameter to a list."""
+    project(Point(map(float, lat_lon.split(',')[::-1])))
+
+
+def haversine(from_: Sequence, to_: Sequence) -> float:
+    """Computes distance on a sphere between two points."""
     from_lat, from_lon, to_lat, to_lon = map(math.radians, [*from_, *to_])
-    a = math.sin((from_lat - to_lat)/2)**2 + math.cos(from_lat) * math.cos(to_lat) * math.sin((from_lon-to_lon)/2)**2
+    a = (
+        math.sin((from_lat - to_lat)/2)**2 +
+        math.cos(from_lat) * math.cos(to_lat) *
+        math.sin((from_lon-to_lon)/2)**2
+    )
     return 6371 * 2 * math.asin(math.sqrt(a)) * 1000  # in meters
 
 
-def route_to_feature(route):
+def route_to_feature(route: Route) -> Feature:
+    """Convert a PostGIS route record to GeoJSON."""
     return Feature(route.id, to_wgs84(to_shape(route.geom)), route_schema.dump(route))
