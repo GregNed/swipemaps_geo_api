@@ -89,32 +89,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeatureCollection"
-  "/distance":
-    post:
-      operationId: app.routes.distance
-      summary: Distance
-      description: Calculate distance between two geograpical coordinates on a sphere
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                positions:
-                  type: array
-                  minItems: 2
-                  maxItems: 2
-                  items:
-                    $ref: "#/components/schemas/Position"
-              required: [positions]
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: integer
-                minimum: 0
   "/routes":
     post:
       operationId: app.routes.post_route
@@ -514,6 +488,7 @@ paths:
       operationId: app.routes.suggest
       parameters:
         - $ref: "#/components/parameters/Text"
+        - $ref: "#/components/parameters/LatLon"
       responses:
         200:
           description: Success
@@ -533,6 +508,7 @@ paths:
       operationId: app.routes.geocode
       parameters:
         - $ref: "#/components/parameters/Text"
+        - $ref: "#/components/parameters/LatLon"
       responses:
         200:
           description: Success
@@ -839,7 +815,6 @@ components:
       name: position
       in: query
       description: A lat,lon string (may contain a space after the comma)
-      required: true
       schema:
         type: string
         format: latlon

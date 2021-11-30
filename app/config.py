@@ -19,6 +19,7 @@ class Config:
     POINT_PROXIMITY_THRESHOLD = 1000  # in meters
     PICKUP_MAX_RADIUS = 1000
     PICKUP_MIN_RADIUS = 200
+    GEO_ENGINE = os.environ['GEO_ENGINE']
 
 
 class ProductionConfig(Config):

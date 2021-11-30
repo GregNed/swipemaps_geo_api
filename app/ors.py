@@ -1,4 +1,5 @@
 import os
+from typing import Iterable
 
 import requests
 import openrouteservice as ors
@@ -13,7 +14,6 @@ ORS_API_KEY = os.getenv('ORS_API_KEY', '')
 PELIAS_ENDPOINT = os.getenv('PELIAS_ENDPOINT')
 PELIAS_API_KEY = os.getenv('PELIAS_API_KEY', '')
 SUPPORTED_REGIONS = 'Moscow City', 'Moscow Oblast', 'Irkutsk', 'Mari El'
-MOSCOW_CENTER = [55.754801, 37.622311]
 
 
 def directions(
@@ -54,7 +54,7 @@ def directions(
     return routes or abort(500, 'ORS failed to route between the requested locations')
 
 
-def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
+def geocode(text, focus, max_occurrences=1):
     """"""
     focus_lat, focus_lon = focus
     params = {
@@ -78,34 +78,7 @@ def geocode(text, focus=MOSCOW_CENTER, max_occurrences=1):
     return feature
 
 
-def reverse_geocode(location, focus=MOSCOW_CENTER, max_occurrences=1):
-    """"""
-    lat, lon = location
-    focus_lat, focus_lon = focus
-    params = {
-        'point.lon': lon,
-        'point.lat': lat,
-        'layers': 'address,venue',
-        'sources': 'openstreetmap',
-        'size': max_occurrences,
-        'focus.point.lon': focus_lon,
-        'focus.point.lat': focus_lat,
-        'boundary.country': 'RU',
-        'lang': 'ru',
-        'api_key': PELIAS_API_KEY
-    }
-    res = requests.get(PELIAS_ENDPOINT + '/reverse', params=params)
-    res.raise_for_status()
-    feature = res.json()['features'][0]
-    feature['id'] = int(feature['properties']['id'].split('/')[1])
-    feature['properties'] = {
-        'address': feature['properties']['name'],
-        'locality': feature['properties'].get('locality') or feature['properties'].get('region')
-    }
-    return feature
-
-
-def suggest(text, focus=MOSCOW_CENTER):
+def suggest(text, focus):
     """"""
     focus_lat, focus_lon = focus
     params = {
@@ -131,3 +104,27 @@ def suggest(text, focus=MOSCOW_CENTER):
             'locality': feature['properties'].get('locality') or feature['properties'].get('region')
         }
     } for feature in results]
+
+def reverse_geocode(location: Iterable, focus: Iterable):
+    """"""
+    params = {
+        'point.lon': location[0],
+        'point.lat': location[1],
+        'layers': 'address,venue',
+        'sources': 'openstreetmap',
+        'size': 1,
+        'focus.point.lon': focus[0],
+        'focus.point.lat': focus[1],
+        'boundary.country': 'RU',
+        'lang': 'ru',
+        'api_key': PELIAS_API_KEY
+    }
+    res = requests.get(PELIAS_ENDPOINT + '/reverse', params=params)
+    res.raise_for_status()
+    feature = res.json()['features'][0]
+    feature['id'] = int(feature['properties']['id'].split('/')[1])
+    feature['properties'] = {
+        'address': feature['properties']['name'],
+        'locality': feature['properties'].get('locality') or feature['properties'].get('region')
+    }
+    return feature

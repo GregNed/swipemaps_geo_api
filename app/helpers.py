@@ -1,10 +1,9 @@
 import math
-from typing import Sequence
+from typing import Iterable, Sequence
 
 import pyproj
 from geojson import Feature
 from geoalchemy2.shape import to_shape
-from shapely.geometry import Point
 from shapely.ops import transform
 
 from app import app
@@ -27,14 +26,14 @@ def to_wgs84(shape):
     return shape if shape.is_empty else transform(_to_wgs84, shape)
 
 
-def parse_lat_lon(lat_lon: str) -> Point:
+def parse_lat_lon(lat_lon: str) -> Iterable:
     """Convert coordinates passed as a query parameter to a list."""
-    project(Point(map(float, lat_lon.split(',')[::-1])))
+    return tuple(map(float, lat_lon.split(',')[::-1]))
 
 
 def haversine(from_: Sequence, to_: Sequence) -> float:
     """Computes distance on a sphere between two points."""
-    from_lat, from_lon, to_lat, to_lon = map(math.radians, [*from_, *to_])
+    from_lon, from_lat, to_lon, to_lat = map(math.radians, [*from_, *to_])
     a = (
         math.sin((from_lat - to_lat)/2)**2 +
         math.cos(from_lat) * math.cos(to_lat) *

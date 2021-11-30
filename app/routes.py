@@ -1,4 +1,5 @@
 from uuid import uuid4
+from requests.models import HTTPError
 
 import sqlalchemy
 from sqlalchemy import func
@@ -8,17 +9,17 @@ from geojson import Feature, FeatureCollection
 from flask import request, abort
 from geoalchemy2.shape import from_shape, to_shape
 
-from app import app, db, ors
+from app import app, db, ors, rumap
 from app.models import DropoffPoint, Route, PickupPoint, PublicTransportStop, Aoi, Road
 from app.helpers import project, to_wgs84, haversine, route_to_feature, parse_lat_lon
 
 
 PROJECTION = app.config['PROJECTION']  # to save some typing and avoid typos
 ROUTE_NOT_FOUND_MESSAGE = 'No such route in the database :-('
+MOSCOW_CENTER = '55.754801,37.622311'  # default focus point
 
 
 def healthcheck():
-    """Display the availablity status of all involved services."""
     response = {service: 'ok' for service in ('server', 'postgres', 'ors', 'pelias')}
     try:
         Route.query.first()
@@ -35,9 +36,8 @@ def healthcheck():
     return response
 
 
-def get_roads(position: str, radius: int):
-    """Get roads (as GeoJSON) within <radius> from <position>."""
-    position = parse_lat_lon(position)
+def get_roads(position, radius):
+    position = project(Point(parse_lat_lon(position)))
     roads = Road.query.filter(func.ST_DWithin(Road.geom, from_shape(position, PROJECTION), radius))
     return FeatureCollection([
         Feature(
@@ -77,12 +77,6 @@ def get_stops(bbox):
         for stop in stops
     ])
 
-
-def distance():
-    """Computes distance on a sphere between two points."""
-    return round(haversine(*request.json['positions']))
-
-
 def get_route_start_or_finish(route_id, point):
     index = 0 if point == 'start' else -1
     route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
@@ -92,7 +86,7 @@ def get_route_start_or_finish(route_id, point):
 
 def is_passenger_arrived(route_id, position):
     route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
-    driver_position = parse_lat_lon(position)
+    driver_position = project(Point(parse_lat_lon(position)))
     return driver_position.distance(route) < app.config['DROPOFF_RADIUS']
 
 
@@ -169,7 +163,7 @@ def post_remainder(route_id):
 def suggest_pickup(route_id, position):
     driver_route = Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom
     driver_route_shape = to_shape(driver_route)
-    passenger_start = parse_lat_lon(position)
+    passenger_start = project(Point(parse_lat_lon(position)))
     # Identify the closest point on the driver's route
     nearest_point = nearest_points(driver_route_shape, passenger_start)[0]
     radius = min(passenger_start.distance(nearest_point), app.config['PICKUP_MAX_RADIUS'])
@@ -309,7 +303,8 @@ def post_route():
         ))
         routes = FeatureCollection([Feature(route_id, route_wgs84)])
     else:
-        routes = ors.directions(positions, request.json['profile'], with_alternatives)
+        routing_engine = globals()[app.config['GEO_ENGINE']]
+        routes = routing_engine.directions(positions, request.json['profile'], with_alternatives)
         # Save routes to DB
         all_routes = routes + prepared_routes
         route_ids = [uuid4() for _ in all_routes]
@@ -445,25 +440,47 @@ def get_candidates(route_id):
     return [route.id for route in candidate_routes]
 
 
-def geocode(text):
+def geocode(text, position=MOSCOW_CENTER):
+    routing_engine = globals()[app.config['GEO_ENGINE']]
     try:
-        return ors.geocode(text)
+        result = routing_engine.geocode(text, 'search', count=1, focus=parse_lat_lon(position))[0]
+        return Feature(result['id'], result['geometry'], result['properties'])
     except IndexError:
         abort(404, 'Nothing found; try a different text')
+    except HTTPError:  # rumap license expired or out of quota
+        if app.config['GEO_ENGINE'] == 'rumap':  # switch to ORS
+            app.config['GEO_ENGINE'] = 'ors'
+            geocode(text)
 
 
-def reverse_geocode(position):
+def suggest(text, position=MOSCOW_CENTER):
+    routing_engine = globals()[app.config['GEO_ENGINE']]
     try:
-        return ors.reverse_geocode(map(float, position.split(',')))
-    except IndexError:
-        abort(404, 'Nothing found')
-
-
-def suggest(text):
-    result = ors.suggest(text)
+        result = routing_engine.geocode(text, 'suggest', count=5, focus=parse_lat_lon(position))
+    except HTTPError:  # rumap license expired or out of quota
+        if app.config['GEO_ENGINE'] == 'rumap':  # switch to ORS
+            app.config['GEO_ENGINE'] = 'ors'
+            suggest(text)
+        else:
+            return
     if result:
         return FeatureCollection([
             Feature(f['id'], f['geometry'], f['properties']) for f in result
         ])
     else:
         abort(404, 'Nothing found; try a different text')
+
+
+def reverse_geocode(position, focus=MOSCOW_CENTER):
+    routing_engine = globals()[app.config['GEO_ENGINE']]
+    try:
+        return routing_engine.reverse_geocode(
+            parse_lat_lon(position),
+            focus=parse_lat_lon(focus)
+        )
+    except IndexError:
+        abort(404, 'Nothing found')
+    except HTTPError:  # rumap license expired or out of quota
+        if app.config['GEO_ENGINE'] == 'rumap':  # switch to ORS
+            app.config['GEO_ENGINE'] = 'ors'
+            reverse_geocode(position)
