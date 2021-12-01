@@ -337,9 +337,8 @@ def post_route():
                 project(LineString(route['geometry'])).buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
             )}]
         prepared_route_buffers = FeatureCollection([
-            Feature(id_, route.buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2))
-            for id_, route in zip(route_ids, prepared_routes)]
-        )
+            Feature(id_, buffer) for id_, buffer in zip(route_ids, prepared_route_buffers)
+        ])
         routes, prepared_routes = [
             FeatureCollection([
                 Feature(
