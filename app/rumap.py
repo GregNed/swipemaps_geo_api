@@ -106,8 +106,8 @@ def directions(
     try:
         routes = [{
             'geometry': linemerge([feature['geometry']['coordinates'] for feature in route['features'][1:-1]]),
-            'distance': route['properties']['length'],
-            'duration': route['properties']['time'],
+            'distance': float(route['properties']['length']),
+            'duration': float(route['properties']['time']),
             'source': app.config['GEO_ENGINE']
         } for route in res]
     except KeyError:
