@@ -334,7 +334,7 @@ def post_route():
         # Prepare the response
         route_buffers = [{
             'geometry': to_wgs84(
-                project(route['geometry']).buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
+                project(LineString(route['geometry'])).buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
             )}]
         prepared_route_buffers = FeatureCollection([
             Feature(id_, route['geometry'].buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2))
