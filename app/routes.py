@@ -77,6 +77,7 @@ def get_stops(bbox):
         for stop in stops
     ])
 
+
 def get_route_start_or_finish(route_id, point):
     index = 0 if point == 'start' else -1
     route = to_shape(Route.query.get_or_404(route_id, ROUTE_NOT_FOUND_MESSAGE).geom)
@@ -223,7 +224,7 @@ def post_route():
     start, finish = Point(positions[0]), Point(positions[-1])
     # Reproject them to be used with Shapely (leave the spherical versions to save to the DB later)
     start_projected, finish_projected = project(start), project(finish)
-    prepared_routes, handles = [], []
+    prepared_routes, prepared_route_buffers, handles = [], [], []
     with_alternatives = request.json.get('alternatives', True) and len(positions) == 2 and request.json['profile'] == 'driving-car'
     with_handles = request.json.get('handles', True)
     # Order intermediate positions along the route
@@ -289,6 +290,9 @@ def post_route():
                 'distance': sum(part['distance'] for part in parts_to_merge),
                 'duration': sum(part['duration'] for part in parts_to_merge)
             })
+            prepared_route_buffers.append(
+                {'geometry': route['geometry'].buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)}
+            )
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
     if request.json.get('make_route') is False:
         route_id = uuid4()
@@ -328,6 +332,14 @@ def post_route():
             handles = [Point(handle.coords[0]) for handle in handles]
             handles = FeatureCollection([Feature(id_, handle) for id_, handle in zip(route_ids, handles)])
         # Prepare the response
+        route_buffers = [{
+            'geometry': to_wgs84(
+                project(route['geometry']).buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
+            )}]
+        prepared_route_buffers = FeatureCollection([
+            Feature(id_, route['geometry'].buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2))
+            for id_, route in zip(route_ids, prepared_routes)]
+        )
         routes, prepared_routes = [
             FeatureCollection([
                 Feature(
@@ -342,6 +354,11 @@ def post_route():
         'routes': routes,
         'handles': handles if with_handles else [],
         'prepared_routes': prepared_routes if with_alternatives else [],
+        'route_buffers': FeatureCollection([
+            Feature(id_, route['geometry']) for id_, route
+            in zip(route_ids, route_buffers)
+        ]),
+        'prepared_route_buffers': prepared_routes if with_alternatives else []
     }
 
 
