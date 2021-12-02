@@ -332,10 +332,19 @@ def post_route():
             handles = [Point(handle.coords[0]) for handle in handles]
             handles = FeatureCollection([Feature(id_, handle) for id_, handle in zip(route_ids, handles)])
         # Prepare the response
-        route_buffers = [{
-            'geometry': to_wgs84(
-                project(LineString(route['geometry'])).buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
-            )}]
+        route_buffers = FeatureCollection([
+            Feature(id_, to_wgs84(
+                project(LineString(route['geometry']))\
+                .buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
+            ))
+            for id_, route in zip(route_ids, routes)
+        ])
+        for buffer in prepared_route_buffers:
+            print('BUFFER', buffer)
+            print('TYPE OF BUFFER', type(buffer))
+            print('TYPE OF BUFFER', list(buffer.exterior.coords))
+            print('TYPE OF BUFFER', buffer.is_valid)
+            print('TYPE OF BUFFER', buffer.geom_type)
         prepared_route_buffers = FeatureCollection([
             Feature(id_, buffer) for id_, buffer in zip(route_ids, prepared_route_buffers)
         ])
@@ -353,10 +362,7 @@ def post_route():
         'routes': routes,
         'handles': handles if with_handles else [],
         'prepared_routes': prepared_routes if with_alternatives else [],
-        'route_buffers': FeatureCollection([
-            Feature(id_, route['geometry']) for id_, route
-            in zip(route_ids, route_buffers)
-        ]),
+        'route_buffers': route_buffers,
         'prepared_route_buffers': prepared_routes if with_alternatives else []
     }
 
