@@ -124,7 +124,9 @@ def parse(properties: dict) -> dict:
     if properties['dataType'] == 'poi':
         address = properties['NAME']
         locality = properties['ADDRESS']
+        type_ = 'poi'
     else:
+        type_ = HIERARCHY[properties['type']]['type']
         try:
             parent: str = HIERARCHY[properties['type']]['parent']
             locality = properties[HIERARCHY[parent]['attribute']]
@@ -144,7 +146,7 @@ def parse(properties: dict) -> dict:
     return {
         'address': address,
         'locality': locality,
-        'type': HIERARCHY[properties['type']]['type']
+        'type': type_
     }
 
 
@@ -167,7 +169,11 @@ def geocode(text: str, mode: str, count: int, focus: Iterable):
         if res.status_code == 403:  # rumap KEY has expired or out of quota
             app.config['GEO_ENGINE'] = 'ors'  # switch to ORS
         raise e  # re-raise for the route handler to retry using ORS
-    results = res.json()['features'][:count]
+    results = sorted(
+        res.json()['features'],
+        key=lambda i: i['properties']['accuracy'],
+        reverse=True
+    )[:count]
     return [
         {
             'id': id_,
@@ -178,9 +184,11 @@ def geocode(text: str, mode: str, count: int, focus: Iterable):
             }
         }
         for id_, feature in enumerate(results, start=1)
-        if feature['properties']['type'] in HIERARCHY and (
-            feature['properties'].get('RSNM') in SUPPORTED_REGIONS
-            or feature['properties'].get('CTSNM') in SUPPORTED_CITIES
+        if feature['properties']['dataType'] == 'poi' or (
+            feature['properties']['type'] in HIERARCHY and (
+                feature['properties'].get('RSNM') in SUPPORTED_REGIONS
+                or feature['properties'].get('CTSNM') in SUPPORTED_CITIES
+            )
         )
     ]
 
