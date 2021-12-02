@@ -291,7 +291,7 @@ def post_route():
                 'duration': sum(part['duration'] for part in parts_to_merge)
             })
             prepared_route_buffers.append(
-                {'geometry': route['geometry'].buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)}
+                route['geometry'].buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
             )
     # User may opt to drive ad-hoc w/out preparing a route; if make_route is False, only the end points will be saved
     if request.json.get('make_route') is False:
@@ -306,6 +306,11 @@ def post_route():
             geom_remainder=route_geom
         ))
         routes = FeatureCollection([Feature(route_id, route_wgs84)])
+        route_buffers = FeatureCollection([
+            Feature(route_id, to_wgs84(
+                project(route_wgs84).buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
+            ))
+        ])
     else:
         routing_engine = globals()[app.config['GEO_ENGINE']]
         routes = routing_engine.directions(positions, request.json['profile'], with_alternatives)
@@ -339,12 +344,6 @@ def post_route():
             ))
             for id_, route in zip(route_ids, routes)
         ])
-        for buffer in prepared_route_buffers:
-            print('BUFFER', buffer)
-            print('TYPE OF BUFFER', type(buffer))
-            print('TYPE OF BUFFER', list(buffer.exterior.coords))
-            print('TYPE OF BUFFER', buffer.is_valid)
-            print('TYPE OF BUFFER', buffer.geom_type)
         prepared_route_buffers = FeatureCollection([
             Feature(id_, buffer) for id_, buffer in zip(route_ids, prepared_route_buffers)
         ])
