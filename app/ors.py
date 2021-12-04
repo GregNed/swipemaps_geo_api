@@ -54,13 +54,13 @@ def directions(
     return routes or abort(500, 'ORS failed to route between the requested locations')
 
 
-def geocode(text, focus, max_occurrences=1):
+def geocode(text, focus, count=1):
     """"""
     focus_lat, focus_lon = focus
     params = {
         'text': text,
         'layers': 'address,venue,locality',
-        'size': max_occurrences,
+        'size': count,
         'sources': 'openstreetmap',
         'focus.point.lon': focus_lon,
         'focus.point.lat': focus_lat,
@@ -71,6 +71,7 @@ def geocode(text, focus, max_occurrences=1):
     res = requests.get(PELIAS_ENDPOINT + '/search', params=params)
     res.raise_for_status()
     feature = res.json()['features'][0]
+    feature['id'] = 1
     feature['properties'] = {
         'address': feature['properties']['name'],
         'locality': feature['properties'].get('locality') or feature['properties'].get('region')

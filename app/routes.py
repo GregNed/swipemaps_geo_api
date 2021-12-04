@@ -339,7 +339,7 @@ def post_route():
         # Prepare the response
         route_buffers = FeatureCollection([
             Feature(id_, to_wgs84(
-                project(LineString(route['geometry']))\
+                project(LineString(route['geometry']))
                 .buffer(app.config['ROUTE_BUFFER_SIZE'], cap_style=2)
             ))
             for id_, route in zip(route_ids, routes)
@@ -462,28 +462,30 @@ def get_candidates(route_id):
 
 
 def geocode(text, position=MOSCOW_CENTER):
-    routing_engine = globals()[app.config['GEO_ENGINE']]
     try:
-        result = routing_engine.geocode(text, 'search', count=1, focus=parse_lat_lon(position))[0]
+        if app.config['GEO_ENGINE'] == 'rumap':
+            try:
+                result = rumap.geocode(text, 'search', count=1, focus=parse_lat_lon(position))[0]
+            except HTTPError:  # rumap license expired or out of quota
+                app.config['GEO_ENGINE'] = 'ors'
+                geocode(text)
+        else:
+            result = ors.geocode(text, parse_lat_lon(position))
         return Feature(result['id'], result['geometry'], result['properties'])
     except IndexError:
         abort(404, 'Nothing found; try a different text')
-    except HTTPError:  # rumap license expired or out of quota
-        if app.config['GEO_ENGINE'] == 'rumap':  # switch to ORS
-            app.config['GEO_ENGINE'] = 'ors'
-            geocode(text)
 
 
 def suggest(text, position=MOSCOW_CENTER):
-    routing_engine = globals()[app.config['GEO_ENGINE']]
-    try:
-        result = routing_engine.geocode(text, 'suggest', count=5, focus=parse_lat_lon(position))
-    except HTTPError:  # rumap license expired or out of quota
-        if app.config['GEO_ENGINE'] == 'rumap':  # switch to ORS
+    if app.config['GEO_ENGINE'] == 'rumap':
+        try:
+            result = rumap.geocode(text, 'suggest', count=5, focus=parse_lat_lon(position))
+        except HTTPError:  # rumap license expired or out of quota
             app.config['GEO_ENGINE'] = 'ors'
             suggest(text)
-        else:
             return
+    else:
+        result = ors.suggest(text, parse_lat_lon(position))
     if result:
         return FeatureCollection([
             Feature(f['id'], f['geometry'], f['properties']) for f in result
