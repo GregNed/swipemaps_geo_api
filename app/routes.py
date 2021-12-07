@@ -331,7 +331,7 @@ def post_route():
             ))
         if request.json['profile'] == 'driving-car' and with_handles:
             # Get midpoints of the route's last segment for the user to drag on the screen
-            routes_last_parts = routes if with_alternatives else ors.directions(positions[-2:], request.json['profile'])
+            routes_last_parts = routes if with_alternatives else routing_engine.directions(positions[-2:], request.json['profile'])
             routes_last_parts = (route['geometry'] for route in routes_last_parts)
             handles = [LineString(route).interpolate(0.5, normalized=True) for route in routes_last_parts]
             handles = [Point(handle.coords[0]) for handle in handles]

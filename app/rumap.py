@@ -94,6 +94,8 @@ def directions(
             },
             'speed': 'online',  # consider traffic
             'return': ['summary'] + (['geometry'] if geometry else []),
+            'startingedgescount': 1,  # temp bug fix: awaits to be resolved by GeoCenter
+            'endingedgescount': 1,  # temp bug fix: awaits to be resolved by GeoCenter
         }
     )
     try:
@@ -101,13 +103,17 @@ def directions(
     except HTTPError as e:
         if res.status_code == 403:  # KEY expired or out of quota
             app.config['GEO_ENGINE'] = 'ors'
-        raise e  # re-raise to submit the same  request to ORS
+        raise e  # re-raise to submit the same request to ORS
     res = res.json()
     if not alternatives:
-        res = [res]
+        res = [res]  # wrap single feature in a list for consistency
     try:
         routes = [{
-            'geometry': linemerge([feature['geometry']['coordinates'] for feature in route['features'][1:-1]]),
+            'geometry': linemerge([
+                feature['geometry']['coordinates']
+                for feature in route['features']
+                if feature['geometry']['type'] == 'LineString'
+            ]),
             'distance': float(route['properties']['length']),
             'duration': float(route['properties']['time']),
             'source': app.config['GEO_ENGINE']
