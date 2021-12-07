@@ -103,6 +103,8 @@ def directions(
             app.config['GEO_ENGINE'] = 'ors'
         raise e  # re-raise to submit the same  request to ORS
     res = res.json()
+    if not alternatives:
+        res = [res]
     try:
         routes = [{
             'geometry': linemerge([feature['geometry']['coordinates'] for feature in route['features'][1:-1]]),
