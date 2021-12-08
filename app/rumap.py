@@ -4,6 +4,7 @@ from typing import Iterable
 import requests
 from flask import abort
 from requests import HTTPError
+from shapely.geometry import LineString
 from shapely.ops import linemerge
 
 from app import app, helpers
@@ -107,17 +108,24 @@ def directions(
     res = res.json()
     if not alternatives:
         res = [res]  # wrap single feature in a list for consistency
+    routes = []
     try:
-        routes = [{
-            'geometry': linemerge([
-                feature['geometry']['coordinates']
-                for feature in route['features']
-                if feature['geometry']['type'] == 'LineString'
-            ]),
-            'distance': float(route['properties']['length']),
-            'duration': float(route['properties']['time']),
-            'source': app.config['GEO_ENGINE']
-        } for route in res]
+        for route in res:
+            output = {
+                'distance': float(route['properties']['length']),
+                'duration': float(route['properties']['time']),
+                'source': app.config['GEO_ENGINE'],
+                'geometry': linemerge([
+                    feature['geometry']['coordinates']
+                    for feature in route['features']
+                    if feature['geometry']['type'] == 'LineString'
+                ])
+            }
+            if output['geometry'].geom_type == 'MultiLineString':  # turn into a LineString
+                output['geometry'] = LineString([
+                    point for line in output['geometry'] for point in line
+                ])
+            routes.append(output)
     except KeyError:
         routes = [{
             'geometry': positions,
