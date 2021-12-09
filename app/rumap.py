@@ -218,6 +218,8 @@ def reverse_geocode(location: Iterable, focus: Iterable) -> dict:
             'x': location[0],
             'y': location[1],
             'format': 'geojson:full',
+            'pattern': 'nearest',
+            'maxDist': 150
         }
     )
     try:
