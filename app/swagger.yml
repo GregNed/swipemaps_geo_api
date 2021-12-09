@@ -527,6 +527,14 @@ paths:
       operationId: app.routes.reverse_geocode
       parameters:
         - $ref: "#/components/parameters/LatLon"
+        - name: focus
+          in: query
+          description: A lat,lon string (may contain a space after the comma)
+          schema:
+            type: string
+            format: latlon
+            pattern: '^\s*-?\d{1,2}(\.\d+)?,\s?-?\d{1,3}(\.\d+)?\s*$'
+          example: "55.759884, 37.618568"
       responses:
         200:
           description: Success
@@ -819,7 +827,7 @@ components:
         type: string
         format: latlon
         pattern: '^\s*-?\d{1,2}(\.\d+)?,\s?-?\d{1,3}(\.\d+)?\s*$'
-      example: "55.532,37.3433"
+      example: "55.759884,37.618568"
   responses:
     RouteNotFound:
       description: "No such route in the database :-("
