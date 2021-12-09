@@ -14,8 +14,8 @@ RUMAP_ROUTING_URL = os.getenv('RUMAP_ROUTING_URL')
 RUMAP_FORWARD_GEOCODING_URL = os.getenv('RUMAP_FORWARD_GEOCODING_URL')
 RUMAP_REVERSE_GEOCODING_URL = os.getenv('RUMAP_REVERSE_GEOCODING_URL')
 KEY = os.getenv('RUMAP_KEY')
-SUPPORTED_CITIES = 'Иркутск', 'Йошкар-Ола', 'Алматы'
-SUPPORTED_REGIONS = 'Москва', 'Московская'
+SUPPORTED_CITIES = 'Иркутск', 'Йошкар-Ола'
+SUPPORTED_REGIONS = 'Москва', 'Московская', 'Алматы'
 HIERARCHY = {
     'address': {
         #  attribute is constructed separately
