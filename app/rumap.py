@@ -123,7 +123,7 @@ def directions(
             }
             if output['geometry'].geom_type == 'MultiLineString':  # turn into a LineString
                 output['geometry'] = LineString([
-                    point for line in output['geometry'] for point in line
+                    point for line in output['geometry'] for point in line.coords
                 ])
             routes.append(output)
     except KeyError:
