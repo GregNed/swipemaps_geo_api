@@ -7,10 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 # Install curl for healthcheck
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
-
+    apt-get install -y --no-install-recommends curl
 RUN pip install --upgrade pip
 
 WORKDIR app/
